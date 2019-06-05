@@ -2,6 +2,7 @@
   <dictionary name="cmj">
     <words>
       <w>backoff</w>
+      <w>goutine</w>
     </words>
   </dictionary>
 </component>

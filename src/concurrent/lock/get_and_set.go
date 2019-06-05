@@ -1,4 +1,4 @@
-package spin
+package lock
 
 import "sync/atomic"
 

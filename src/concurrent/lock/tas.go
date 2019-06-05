@@ -1,7 +1,7 @@
-// Package spin provides basic spin lock.
+// Package lock provides basic lock lock.
 //
 // Values containing the types defined in this package should not be copied.
-package spin
+package lock
 
 import "sync/atomic"
 
@@ -18,7 +18,7 @@ type TASLock struct {
 }
 
 func (l *TASLock) Lock() {
-	for ;!atomic.CompareAndSwapInt32(&l.state, mutexLocked, mutexUnlocked); {
+	for ; !atomic.CompareAndSwapInt32(&l.state, mutexUnlocked, mutexLocked); {
 	}
 }
 
@@ -45,7 +45,7 @@ func (l *TTASLock) Lock() {
 	for {
 		for ; l.state == mutexLocked; { // 本地旋转
 		}
-		if atomic.CompareAndSwapInt32(&l.state, mutexLocked, mutexUnlocked) {
+		if atomic.CompareAndSwapInt32(&l.state, mutexUnlocked, mutexLocked) {
 			return
 		}
 	}
