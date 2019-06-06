@@ -92,7 +92,7 @@ func TestLockedQueue_ParallelDeq(t *testing.T) {
 	for i := 0; i < Count; i++ {
 		qu.Enq(i)
 	}
-	var intChan = make(chan int)
+	var intChan = make(chan int, Count)
 	go checkIntValid(intChan, t)
 	for i := 0; i < GoroutineNum; i++ {
 		go deqFunc(&qu, intChan, doneChan)
@@ -106,7 +106,7 @@ func TestLockedQueue_ParallelDeq(t *testing.T) {
 func TestLockedQueue_Both(t *testing.T) {
 	qu := NewLockedQueue(Count)
 	doneChan := make(chan bool)
-	var intChan = make(chan int)
+	var intChan = make(chan int, Count)
 	go checkIntValid(intChan, t)
 	for i := 0; i < GoroutineNum; i ++ {
 		go enqFunc(&qu, i*PerRoutine, doneChan)
