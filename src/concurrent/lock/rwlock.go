@@ -12,16 +12,16 @@ type RWLocker interface {
 }
 
 type UselessRWLock struct {
-	mu sync.Mutex
+	mu *sync.Mutex // 不要使用非指针类型的Mutex（A Mutex must not be copied after first use.）
 	cond *sync.Cond
 	readers int
 	writing bool
 }
 
-func NewUselessRWLock() UselessRWLock {
-	mu := sync.Mutex{}
-	cond := sync.NewCond(&mu)
-	return UselessRWLock{mu: mu, cond: cond}
+func NewUselessRWLock() *UselessRWLock {
+	mu := &sync.Mutex{}
+	cond := sync.NewCond(mu)
+	return &UselessRWLock{mu: mu, cond: cond}
 }
 
 func (rwl *UselessRWLock) RLock()  {
@@ -60,17 +60,17 @@ func (rwl *UselessRWLock) WUnlock()  {
 }
 
 type FifoRWLock struct {
-	mu sync.Mutex
+	mu *sync.Mutex
 	cond *sync.Cond
 	acquireReaders int64
 	releaseReaders int64
 	writing bool
 }
 
-func NewFifoRWLock() FifoRWLock {
-	mu := sync.Mutex{}
-	cond := sync.NewCond(&mu)
-	return FifoRWLock{mu: mu, cond: cond}
+func NewFifoRWLock() * FifoRWLock {
+	mu := &sync.Mutex{}
+	cond := sync.NewCond(mu)
+	return &FifoRWLock{mu: mu, cond: cond}
 }
 
 func (rwl *FifoRWLock) RLock()  {

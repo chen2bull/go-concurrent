@@ -1,4 +1,4 @@
-package lock
+package util
 
 import (
 	"sync"
@@ -6,14 +6,14 @@ import (
 
 type Semaphore struct {
 	capacity int
-	mu       sync.Mutex
+	mu       *sync.Mutex
 	cond     *sync.Cond
 	state    int
 }
 
 func NewSemaphore(cap int) Semaphore {
-	mu := sync.Mutex{}
-	cond := sync.NewCond(&mu)
+	mu := &sync.Mutex{}
+	cond := sync.NewCond(mu)
 	return Semaphore{mu: mu, cond: cond, capacity: cap, state: 0}
 }
 

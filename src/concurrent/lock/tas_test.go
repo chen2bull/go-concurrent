@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var GoroutineNum = 8
+var GoroutineNum = 32
 var Count = GoroutineNum * 102400
 var PerRoutine = Count / GoroutineNum
 
