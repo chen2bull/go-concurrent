@@ -57,7 +57,7 @@ func (sr *StampedReference) AttemptStamp(expectedV interface{}, newStamp int64) 
 	return false
 }
 
-// Unconditionally sets the value of both the value and stamp.
+// Unconditionally sets both the value and stamp.
 func (sr *StampedReference) Set(newV interface{}, newStamp int64) {
 	var old = atomic.LoadPointer(sr.p)
 	var cur = (*stampedPair)(old)
