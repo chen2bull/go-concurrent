@@ -12,7 +12,7 @@ type RWLocker interface {
 }
 
 type UselessRWLock struct {
-	mu *sync.Mutex // 不要使用非指针类型的Mutex（A Mutex must not be copied after first use.）
+	mu *sync.Mutex // 不要使用非指针类型的Mutex
 	cond *sync.Cond
 	readers int
 	writing bool
