@@ -1,4 +1,4 @@
-package main
+package list
 
 type Set interface {
 	Add(v interface{}) bool

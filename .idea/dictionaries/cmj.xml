@@ -2,6 +2,8 @@
   <dictionary name="cmj">
     <words>
       <w>backoff</w>
+      <w>dequeuers</w>
+      <w>enqueuers</w>
       <w>goutine</w>
       <w>markable</w>
       <w>struct</w>

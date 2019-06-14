@@ -17,3 +17,17 @@ func GetAndSetInt32(addr *int32, newValue int32) int32 {
 	}
 	return oldValue
 }
+
+func GetAndAddInt64(addr *int64, delta int64) int64 {
+	var oldValue int64
+	for oldValue = *addr; !atomic.CompareAndSwapInt64(addr, oldValue, oldValue + delta); oldValue = *addr {
+	}
+	return oldValue
+}
+
+func GetAndAddInt32(addr *int32, delta int32) int32 {
+	var oldValue int32
+	for oldValue = *addr; !atomic.CompareAndSwapInt64(addr, oldValue, oldValue + delta); oldValue = *addr {
+	}
+	return oldValue
+}

@@ -1,27 +1,12 @@
 package queue
 
 import (
-	"fmt"
 	"testing"
 )
 
 var GoroutineNum = 8
 var Count = GoroutineNum * 64
 var PerRoutine = Count / GoroutineNum
-
-func ExampleLockedQueue_Deq() {
-	var qu = NewLockedQueue(Count)
-	for i := 0; i < Count; i++ {
-		qu.Enq(i)
-	}
-	for i := 0; i < Count; i++ {
-		var v = qu.Deq()
-		var value = v.(int)
-		if value != i {
-			fmt.Printf("not equal|value:%d i:%d", value, i)
-		}
-	}
-}
 
 func TestLockedQueue_Sequential(t *testing.T) {
 	var qu = NewLockedQueue(Count)
@@ -42,7 +27,7 @@ func TestLockedQueue_ParallelEnq(t *testing.T) {
 	qu := NewLockedQueue(Count)
 	doneChan := make(chan bool)
 	for i := 0; i < GoroutineNum; i++ {
-		go enqFunc(&qu, i*PerRoutine, doneChan)
+		go enqFunc(qu, i*PerRoutine, doneChan)
 	}
 	for i := 0; i < GoroutineNum; i++ {
 		<-doneChan
@@ -95,7 +80,7 @@ func TestLockedQueue_ParallelDeq(t *testing.T) {
 	var intChan = make(chan int, Count)
 	go checkIntValid(intChan, t)
 	for i := 0; i < GoroutineNum; i++ {
-		go deqFunc(&qu, intChan, doneChan)
+		go deqFunc(qu, intChan, doneChan)
 	}
 	for i := 0; i < GoroutineNum; i++ {
 		<-doneChan
@@ -109,8 +94,8 @@ func TestLockedQueue_Both(t *testing.T) {
 	var intChan = make(chan int, Count)
 	go checkIntValid(intChan, t)
 	for i := 0; i < GoroutineNum; i ++ {
-		go enqFunc(&qu, i*PerRoutine, doneChan)
-		go deqFunc(&qu, intChan, doneChan)
+		go enqFunc(qu, i*PerRoutine, doneChan)
+		go deqFunc(qu, intChan, doneChan)
 	}
 	for i := 0; i < GoroutineNum; i++ {
 		<-doneChan

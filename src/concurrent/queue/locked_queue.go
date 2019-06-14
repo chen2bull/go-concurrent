@@ -12,12 +12,12 @@ type LockedQueue struct {
 	tail, head, count int
 }
 
-func NewLockedQueue(cap int) LockedQueue {
+func NewLockedQueue(cap int) *LockedQueue {
 	var l sync.Locker = &sync.Mutex{}
 	notFull := sync.NewCond(l)
 	notEmpty := sync.NewCond(l)
 	items := make([]interface{}, cap, cap)
-	return LockedQueue{l, notFull, notEmpty, items, 0, 0, 0}
+	return &LockedQueue{l, notFull, notEmpty, items, 0, 0, 0}
 }
 
 func (queue *LockedQueue) Enq(v interface{}) {
