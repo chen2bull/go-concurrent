@@ -93,8 +93,8 @@ func TestUnBoundedQueue_Both(t *testing.T) {
 	var intChan = make(chan int, UnBoundedCount)
 	go unBoundedCheckIntValid(intChan, t)
 	for i := 0; i < UnBoundedGoroutineNum; i ++ {
-		go unBoundedEnqFunc(qu, i*UnBoundedPerRoutine, doneChan)
 		go unBoundedDeqFunc(qu, intChan, doneChan)
+		go unBoundedEnqFunc(qu, i*UnBoundedPerRoutine, doneChan)
 	}
 	for i := 0; i < UnBoundedGoroutineNum; i++ {
 		<-doneChan

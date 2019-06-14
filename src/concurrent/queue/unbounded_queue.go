@@ -53,5 +53,6 @@ func (q *UnBoundedQueue) Deq() interface{} {
 	}
 	result := q.head.next.v
 	q.head = q.head.next
+	atomic.AddInt64(&q.size, -1)
 	return result
 }
