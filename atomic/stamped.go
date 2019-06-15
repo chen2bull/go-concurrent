@@ -6,7 +6,7 @@ import (
 )
 
 type stampedPair struct {
-	v     interface{}
+	value     interface{}
 	stamp int64
 }
 
@@ -14,14 +14,14 @@ type StampedReference struct {
 	p *unsafe.Pointer
 }
 
-func NewStampedReference(v interface{}, stamped int64) *StampedReference {
-	var p = unsafe.Pointer(&stampedPair{v: v, stamp: stamped})
+func NewStampedReference(value interface{}, stamped int64) *StampedReference {
+	var p = unsafe.Pointer(&stampedPair{value: value, stamp: stamped})
 	return &StampedReference{p: &p}
 }
 
 func (sr *StampedReference) GetReference() interface{} {
 	var a = (*stampedPair)(atomic.LoadPointer(sr.p))
-	return a.v
+	return a.value
 }
 
 func (sr *StampedReference) GetStamp() interface{} {
@@ -31,7 +31,7 @@ func (sr *StampedReference) GetStamp() interface{} {
 
 func (sr *StampedReference) Get() (interface{}, int64) {
 	var a = (*stampedPair)(atomic.LoadPointer(sr.p))
-	return a.v, a.stamp
+	return a.value, a.stamp
 }
 
 func (sr *StampedReference) CompareAndSet(expectedV interface{}, newV interface{}, expectedStamp int64, newStamp int64) bool {
@@ -39,10 +39,10 @@ func (sr *StampedReference) CompareAndSet(expectedV interface{}, newV interface{
 	var old = atomic.LoadPointer(sr.p)
 	var cur = (*stampedPair)(old)
 
-	if cur.v == expectedV && cur.stamp == expectedStamp {
-		if cur.v != newV || cur.stamp != newStamp {
-			//fmt.Printf("*sr.p:%v old:%v\n", *sr.p, old)
-			return atomic.CompareAndSwapPointer(sr.p, old, unsafe.Pointer(&stampedPair{v: newV, stamp: newStamp}))
+	if cur.value == expectedV && cur.stamp == expectedStamp {
+		if cur.value != newV || cur.stamp != newStamp {
+			//fmt.Printf("*sr.p:%value old:%value\n", *sr.p, old)
+			return atomic.CompareAndSwapPointer(sr.p, old, unsafe.Pointer(&stampedPair{value: newV, stamp: newStamp}))
 		}
 	}
 	return false
@@ -51,8 +51,8 @@ func (sr *StampedReference) CompareAndSet(expectedV interface{}, newV interface{
 func (sr *StampedReference) AttemptStamp(expectedV interface{}, newStamp int64) bool {
 	var old = atomic.LoadPointer(sr.p)
 	var cur = (*stampedPair)(old)
-	if cur.v == expectedV && cur.stamp != newStamp {
-		return atomic.CompareAndSwapPointer(sr.p, old, unsafe.Pointer(&stampedPair{v: expectedV, stamp: newStamp}))
+	if cur.value == expectedV && cur.stamp != newStamp {
+		return atomic.CompareAndSwapPointer(sr.p, old, unsafe.Pointer(&stampedPair{value: expectedV, stamp: newStamp}))
 	}
 	return false
 }
@@ -61,8 +61,8 @@ func (sr *StampedReference) AttemptStamp(expectedV interface{}, newStamp int64) 
 func (sr *StampedReference) Set(newV interface{}, newStamp int64) {
 	var old = atomic.LoadPointer(sr.p)
 	var cur = (*stampedPair)(old)
-	if newV != cur.v || newStamp != cur.stamp {
-		p := unsafe.Pointer(&stampedPair{v: newV, stamp: newStamp})
+	if newV != cur.value || newStamp != cur.stamp {
+		p := unsafe.Pointer(&stampedPair{value: newV, stamp: newStamp})
 		sr.p = &p
 	}
 }
