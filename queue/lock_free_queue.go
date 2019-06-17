@@ -55,7 +55,7 @@ func (queue *LockFreeQueue) Deq() interface{} {
 		nextRef := first.next.Get()
 		if first == last {
 			if nextRef == nil {
-				// TODO: 这里应该等待或者抛出异常
+				// TODO: 这里应该改成back_off 返回错误或者 抛出异常
 				time.Sleep(1000)
 				continue
 			}

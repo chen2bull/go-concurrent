@@ -3,6 +3,7 @@ package queue
 import (
 	"fmt"
 	"github.com/cmingjian/go-concurrent/atomic"
+	"time"
 )
 
 type RecycleLockFreeQueue struct {
@@ -33,7 +34,6 @@ func (q *RecycleLockFreeQueue) Enq(v interface{}) {
 		lastRef, lastStamp := q.tail.Get()
 		last := lastRef.(*recycleLockFreeQueueNode)
 		nextRef, nextStamp := last.next.Get()
-		//next := nextRef.(*recycleLockFreeQueueNode)
 		if nextRef == nil {
 			if last.next.CompareAndSet(nil, node, nextStamp, nextStamp+1) {
 				// 入队已完成, 尝试将tail向前移动,只尝试一次
@@ -42,7 +42,8 @@ func (q *RecycleLockFreeQueue) Enq(v interface{}) {
 			}
 		} else {
 			// try to swing tail to next node
-			q.tail.CompareAndSet(last, node, lastStamp, lastStamp+1)
+			next := nextRef.(*recycleLockFreeQueueNode)
+			q.tail.CompareAndSet(last, next, lastStamp, lastStamp+1)
 		}
 	}
 }
@@ -53,10 +54,12 @@ func (q *RecycleLockFreeQueue) Deq() interface{} {
 		first := firstRef.(*recycleLockFreeQueueNode)
 		lastRef, lastStamp := q.tail.Get()
 		last := lastRef.(*recycleLockFreeQueueNode)
-		nextRef, _ := last.next.Get()
+		nextRef, _ := first.next.Get()
 		if first == last {
 			if nextRef == nil {
-				panic("todo:add condition")
+				// TODO: 这里应该改成back_off 返回错误或者 抛出异常
+				time.Sleep(1000)
+				continue
 			}
 			next := nextRef.(*recycleLockFreeQueueNode)
 			q.tail.CompareAndSet(last, next, lastStamp, lastStamp+1)
@@ -64,6 +67,7 @@ func (q *RecycleLockFreeQueue) Deq() interface{} {
 			next := nextRef.(*recycleLockFreeQueueNode)
 			value := next.v
 			if q.head.CompareAndSet(first, next, firstStamp, firstStamp+1) {
+				// TODO: 添加Recycle 功能 
 				return value
 			}
 		}
@@ -78,9 +82,9 @@ func (q * RecycleLockFreeQueue) PrintAllElement() {
 	fmt.Printf("tail:%v %v\n", tail, tailStamp)
 	head, _ = q.head.Get()
 	var cur = head.(*recycleLockFreeQueueNode)
-	for ;true ; {
-		nextRef, stamp := cur.next.Get()
-		cur := nextRef.(*recycleLockFreeQueueNode)
-		fmt.Printf("cur.v,%v, stamp, %v\n", cur.v, stamp)
+	for ;cur.next.GetReference() != nil ; {
+		next, nextStamp := cur.next.Get()
+		cur = next.(*recycleLockFreeQueueNode)
+		fmt.Printf("cur.v,%v, stamp, %v\n", cur.v, nextStamp)
 	}
 }
