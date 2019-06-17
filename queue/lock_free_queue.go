@@ -39,7 +39,8 @@ func (queue *LockFreeQueue) Enq(v interface{}) {
 				return
 			}
 		} else {
-			queue.tail.CompareAndSet(last, node)
+			next := nextRef.(*lockFreeQueueNode)
+			queue.tail.CompareAndSet(last, next)
 		}
 	}
 }
@@ -52,24 +53,15 @@ func (queue *LockFreeQueue) Deq() interface{} {
 		lastRef := queue.tail.Get()
 		last := lastRef.(*lockFreeQueueNode)
 		nextRef := first.next.Get()
-		//fmt.Printf("firstRef:%v\n", firstRef)
-		//fmt.Printf("first:%v\n", first)
-		//fmt.Printf("lastRef:%v\n", lastRef)
-		//fmt.Printf("last:%v\n", last)
-		//fmt.Printf("nextRef:%v\n", nextRef)
-		//fmt.Printf("===================\n")
 		if first == last {
 			if nextRef == nil {
 				// TODO: 这里应该等待或者抛出异常
-				time.Sleep(100)
+				time.Sleep(1000)
 				continue
 			}
 			next := nextRef.(*lockFreeQueueNode)
 			queue.tail.CompareAndSet(last, next)
 		} else {
-			if nextRef == nil {
-				queue.PrintAllElement()
-			}
 			next := nextRef.(*lockFreeQueueNode)
 			value := next.v
 			if queue.head.CompareAndSet(first, next) {
