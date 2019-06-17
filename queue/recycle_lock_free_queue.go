@@ -1,6 +1,9 @@
 package queue
 
-import "github.com/cmingjian/go-concurrent/atomic"
+import (
+	"fmt"
+	"github.com/cmingjian/go-concurrent/atomic"
+)
 
 type RecycleLockFreeQueue struct {
 	head, tail *atomic.StampedReference
@@ -11,21 +14,21 @@ type recycleLockFreeQueueNode struct {
 	next *atomic.StampedReference
 }
 
-func newLockFreeQueueNode(v interface{}) *recycleLockFreeQueueNode {
+func newRecycleLockFreeQueueNode(v interface{}) *recycleLockFreeQueueNode {
 	// next不会为nil，而是value为nil且stamped为0的StampedReference
 	defaultNext := atomic.NewStampedReference(nil, 0)
 	return &recycleLockFreeQueueNode{v: v, next: defaultNext}
 }
 
-func NewLockFreeQueue() *RecycleLockFreeQueue {
-	sentinelNode := newLockFreeQueueNode(nil)
+func NewRecycleLockFreeQueue() *RecycleLockFreeQueue {
+	sentinelNode := newRecycleLockFreeQueueNode(nil)
 	head := atomic.NewStampedReference(sentinelNode, 0)
 	tail := atomic.NewStampedReference(sentinelNode, 0)
 	return &RecycleLockFreeQueue{head: head, tail: tail}
 }
 
 func (q *RecycleLockFreeQueue) Enq(v interface{}) {
-	node := newLockFreeQueueNode(v)
+	node := newRecycleLockFreeQueueNode(v)
 	for ; true; {
 		lastRef, lastStamp := q.tail.Get()
 		last := lastRef.(*recycleLockFreeQueueNode)
@@ -51,7 +54,7 @@ func (q *RecycleLockFreeQueue) Deq() interface{} {
 		lastRef, lastStamp := q.tail.Get()
 		last := lastRef.(*recycleLockFreeQueueNode)
 		nextRef, _ := last.next.Get()
-		if firstRef == lastRef {
+		if first == last {
 			if nextRef == nil {
 				panic("todo:add condition")
 			}
@@ -66,4 +69,18 @@ func (q *RecycleLockFreeQueue) Deq() interface{} {
 		}
 	}
 	panic("never here")
+}
+
+func (q * RecycleLockFreeQueue) PrintAllElement() {
+	head, headStamp := q.head.Get()
+	tail, tailStamp := q.tail.Get()
+	fmt.Printf("head:%v %v\n", head, headStamp)
+	fmt.Printf("tail:%v %v\n", tail, tailStamp)
+	head, _ = q.head.Get()
+	var cur = head.(*recycleLockFreeQueueNode)
+	for ;true ; {
+		nextRef, stamp := cur.next.Get()
+		cur := nextRef.(*recycleLockFreeQueueNode)
+		fmt.Printf("cur.v,%v, stamp, %v\n", cur.v, stamp)
+	}
 }

@@ -103,3 +103,12 @@ func TestLockedQueue_Both(t *testing.T) {
 	}
 	close(intChan)
 }
+
+func TestLockedQueue_Nil(t *testing.T) {
+	var qu = NewLockedQueue(Count)
+	qu.Enq(nil)
+	var v = qu.Deq()
+	if v != nil {
+		t.Fatalf("v is not nil, v:%v", v)
+	}
+}
