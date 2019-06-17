@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-func TestNewLockFreeQueue(t *testing.T) {
+func TestNewRecycleLockFreeQueue(t *testing.T) {
 	qu := NewLockFreeQueue()
 	tailRef := qu.tail.GetReference()
-	tail := tailRef.(*lockFreeQueueNode)
+	tail := tailRef.(*recycleLockFreeQueueNode)
 	nextRef := tail.next.GetReference()
 	if nextRef != nil {
-		next := nextRef.(*lockFreeQueueNode)
+		next := nextRef.(*recycleLockFreeQueueNode)
 		fmt.Printf("next:%v\n", next)
 	}
 	fmt.Printf("nextRef:%v\n", nextRef)

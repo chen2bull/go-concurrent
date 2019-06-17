@@ -2,35 +2,35 @@ package queue
 
 import "github.com/cmingjian/go-concurrent/atomic"
 
-type LockFreeQueue struct {
+type RecycleLockFreeQueue struct {
 	head, tail *atomic.StampedReference
 }
 
-type lockFreeQueueNode struct {
+type recycleLockFreeQueueNode struct {
 	v    interface{}
 	next *atomic.StampedReference
 }
 
-func newLockFreeQueueNode(v interface{}) *lockFreeQueueNode {
+func newLockFreeQueueNode(v interface{}) *recycleLockFreeQueueNode {
 	// next不会为nil，而是value为nil且stamped为0的StampedReference
 	defaultNext := atomic.NewStampedReference(nil, 0)
-	return &lockFreeQueueNode{v: v, next: defaultNext}
+	return &recycleLockFreeQueueNode{v: v, next: defaultNext}
 }
 
-func NewLockFreeQueue() *LockFreeQueue {
+func NewLockFreeQueue() *RecycleLockFreeQueue {
 	sentinelNode := newLockFreeQueueNode(nil)
 	head := atomic.NewStampedReference(sentinelNode, 0)
 	tail := atomic.NewStampedReference(sentinelNode, 0)
-	return &LockFreeQueue{head: head, tail: tail}
+	return &RecycleLockFreeQueue{head: head, tail: tail}
 }
 
-func (q *LockFreeQueue) Enq(v interface{}) {
+func (q *RecycleLockFreeQueue) Enq(v interface{}) {
 	node := newLockFreeQueueNode(v)
 	for ; true; {
 		lastRef, lastStamp := q.tail.Get()
-		last := lastRef.(*lockFreeQueueNode)
+		last := lastRef.(*recycleLockFreeQueueNode)
 		nextRef, nextStamp := last.next.Get()
-		//next := nextRef.(*lockFreeQueueNode)
+		//next := nextRef.(*recycleLockFreeQueueNode)
 		if nextRef == nil {
 			if last.next.CompareAndSet(nil, node, nextStamp, nextStamp+1) {
 				// 入队已完成, 尝试将tail向前移动,只尝试一次
@@ -44,21 +44,21 @@ func (q *LockFreeQueue) Enq(v interface{}) {
 	}
 }
 
-func (q *LockFreeQueue) Deq() interface{} {
+func (q *RecycleLockFreeQueue) Deq() interface{} {
 	for ; true; {
 		firstRef, firstStamp := q.head.Get()
-		first := firstRef.(*lockFreeQueueNode)
+		first := firstRef.(*recycleLockFreeQueueNode)
 		lastRef, lastStamp := q.tail.Get()
-		last := lastRef.(*lockFreeQueueNode)
+		last := lastRef.(*recycleLockFreeQueueNode)
 		nextRef, _ := last.next.Get()
 		if firstRef == lastRef {
 			if nextRef == nil {
 				panic("todo:add condition")
 			}
-			next := nextRef.(*lockFreeQueueNode)
+			next := nextRef.(*recycleLockFreeQueueNode)
 			q.tail.CompareAndSet(last, next, lastStamp, lastStamp+1)
 		} else {
-			next := nextRef.(*lockFreeQueueNode)
+			next := nextRef.(*recycleLockFreeQueueNode)
 			value := next.v
 			if q.head.CompareAndSet(first, next, firstStamp, firstStamp+1) {
 				return value
