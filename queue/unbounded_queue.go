@@ -48,7 +48,7 @@ func (q *UnBoundedQueue) Enq(v interface{}) {
 func (q *UnBoundedQueue) Deq() interface{} {
 	q.deqLock.Lock()
 	defer q.deqLock.Unlock()
-	for ; q.size == 0; {
+	for ; atomic.LoadInt64(&q.size) == 0; {
 		q.notEmptyCond.Wait()
 	}
 	result := q.head.next.v

@@ -33,7 +33,7 @@ type boundedNode struct {
 func (q *BoundedQueue) enqDeal(v interface{}) bool {
 	q.enqLock.Lock()
 	defer q.enqLock.Unlock()
-	for ; q.size == q.capacity; {
+	for ; atomic.LoadInt64(&q.size) == atomic.LoadInt64(&q.capacity); {
 		q.notFullCond.Wait()
 	}
 	e := &boundedNode{v: v}
@@ -55,12 +55,12 @@ func (q *BoundedQueue) Enq(v interface{}) {
 func (q *BoundedQueue) deqDeal() (interface{}, bool) {
 	q.deqLock.Lock()
 	defer q.deqLock.Unlock()
-	for ; q.size == 0; {
+	for ; atomic.LoadInt64(&q.size) == 0; {
 		q.notEmptyCond.Wait()
 	}
 	result := q.head.next.v
 	q.head = q.head.next
-	return result, atomic.AddInt64(&q.size, -1) == q.capacity - 1
+	return result, atomic.AddInt64(&q.size, -1) == atomic.LoadInt64(&q.capacity) - 1
 }
 
 func (q *BoundedQueue) Deq() interface{} {
