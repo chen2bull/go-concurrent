@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -32,9 +31,9 @@ func TestRecycleLockFreeQueue_ParallelEnq(t *testing.T) {
 	for i := 0; i < RecycleLockFreeGoroutineNum; i++ {
 		<-doneChan
 	}
-	fmt.Printf("elements start\n")
-	qu.PrintAllElement()
-	fmt.Printf("elements end\n")
+	//fmt.Printf("elements start\n")
+	//qu.PrintAllElement()
+	//fmt.Printf("elements end\n")
 	var intMap = make(map[int]bool)
 	for i := 0; i < RecycleLockFreeCount; i++ {
 		v := qu.Deq().(int)
@@ -116,4 +115,39 @@ func TestRecycleLockFreeQueue_Nil(t *testing.T) {
 	if v != nil {
 		t.Fatalf("v is not nil, v:%v", v)
 	}
+}
+
+func TestRecycleLockFreeQueue_BothNil(t *testing.T) {
+	qu := NewRecycleLockFreeQueue()
+	doneChan := make(chan bool)
+	var interfaceChan = make(chan interface{}, LockFreeCount)
+	go func() {
+		for v := range interfaceChan {
+			if v != nil {
+				t.Errorf("unexpected value|v:%d", v)
+			}
+		}
+	}()
+	for i := 0; i < LockFreeGoroutineNum; i ++ {
+		go func(dChan chan bool) {
+			for i := 0; i < LockFreePerRoutine; i++ {
+				qu.Enq(nil)
+			}
+			dChan <- true
+		}(doneChan)
+	}
+	for i := 0; i < LockFreeGoroutineNum; i ++ {
+		go func(dChan chan bool) {
+			for i := 0; i < LockFreePerRoutine; i++ {
+				v := qu.Deq()
+				interfaceChan <- v
+			}
+			dChan <- true
+		}(doneChan)
+	}
+	for i := 0; i < LockFreeGoroutineNum; i++ {
+		<-doneChan
+		<-doneChan
+	}
+	close(interfaceChan)
 }

@@ -3,7 +3,7 @@ package queue
 import (
 	"fmt"
 	"github.com/cmingjian/go-concurrent/atomic"
-	"time"
+	"github.com/cmingjian/go-concurrent/lock"
 )
 
 type RecycleLockFreeQueue struct {
@@ -49,6 +49,7 @@ func (q *RecycleLockFreeQueue) Enq(v interface{}) {
 }
 
 func (q *RecycleLockFreeQueue) Deq() interface{} {
+	backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
 	for ; true; {
 		firstRef, firstStamp := q.head.Get()
 		first := firstRef.(*recycleLockFreeQueueNode)
@@ -57,8 +58,7 @@ func (q *RecycleLockFreeQueue) Deq() interface{} {
 		nextRef, _ := first.next.Get()
 		if first == last {
 			if nextRef == nil {
-				// TODO: 这里应该改成back_off 返回错误或者 抛出异常
-				time.Sleep(1000)
+				backoff.BackOffWait()
 				continue
 			}
 			next := nextRef.(*recycleLockFreeQueueNode)

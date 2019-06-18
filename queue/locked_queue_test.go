@@ -112,3 +112,38 @@ func TestLockedQueue_Nil(t *testing.T) {
 		t.Fatalf("v is not nil, v:%v", v)
 	}
 }
+
+func TestLockedQueue_BothNil(t *testing.T) {
+	qu := NewLockedQueue(1)
+	doneChan := make(chan bool)
+	var interfaceChan = make(chan interface{}, LockFreeCount)
+	go func() {
+		for v := range interfaceChan {
+			if v != nil {
+				t.Errorf("unexpected value|v:%d", v)
+			}
+		}
+	}()
+	for i := 0; i < LockFreeGoroutineNum; i ++ {
+		go func(dChan chan bool) {
+			for i := 0; i < LockFreePerRoutine; i++ {
+				qu.Enq(nil)
+			}
+			dChan <- true
+		}(doneChan)
+	}
+	for i := 0; i < LockFreeGoroutineNum; i ++ {
+		go func(dChan chan bool) {
+			for i := 0; i < LockFreePerRoutine; i++ {
+				v := qu.Deq()
+				interfaceChan <- v
+			}
+			dChan <- true
+		}(doneChan)
+	}
+	for i := 0; i < LockFreeGoroutineNum; i++ {
+		<-doneChan
+		<-doneChan
+	}
+	close(interfaceChan)
+}

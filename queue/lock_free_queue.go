@@ -3,6 +3,7 @@ package queue
 import (
 	"fmt"
 	atomic2 "github.com/cmingjian/go-concurrent/atomic"
+	"github.com/cmingjian/go-concurrent/lock"
 	"time"
 )
 
@@ -45,8 +46,11 @@ func (queue *LockFreeQueue) Enq(v interface{}) {
 	}
 }
 
+var backOffMinDelay  = int64(8 * time.Millisecond)
+var backOffMaxDelay  = int64(1024 * time.Millisecond)
+
 func (queue *LockFreeQueue) Deq() interface{} {
-	//fmt.Printf("deq start\n")
+	backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
 	for ; true; {
 		firstRef := queue.head.Get()
 		first := firstRef.(*lockFreeQueueNode)
@@ -55,8 +59,7 @@ func (queue *LockFreeQueue) Deq() interface{} {
 		nextRef := first.next.Get()
 		if first == last {
 			if nextRef == nil {
-				// TODO: 这里应该改成back_off 返回错误或者 抛出异常
-				time.Sleep(1000)
+				backoff.BackOffWait()
 				continue
 			}
 			next := nextRef.(*lockFreeQueueNode)
