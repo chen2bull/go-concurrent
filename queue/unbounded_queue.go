@@ -28,31 +28,31 @@ type unBoundedNode struct {
 }
 
 // enqDeal returns true if the queue must wake up Dequeuers.
-func (q *UnBoundedQueue) enqDeal(v interface{}) bool {
-	q.enqLock.Lock()
-	defer q.enqLock.Unlock()
+func (qu *UnBoundedQueue) enqDeal(v interface{}) bool {
+	qu.enqLock.Lock()
+	defer qu.enqLock.Unlock()
 	e := &unBoundedNode{v: v}
-	q.tail.next = e
-	q.tail = e
-	return atomic.AddInt64(&q.size, 1) == 1
+	qu.tail.next = e
+	qu.tail = e
+	return atomic.AddInt64(&qu.size, 1) == 1
 }
 
-func (q *UnBoundedQueue) Enq(v interface{}) {
-	if q.enqDeal(v) {
-		q.deqLock.Lock()
-		defer q.deqLock.Unlock()
-		q.notEmptyCond.Broadcast()
+func (qu *UnBoundedQueue) Enq(v interface{}) {
+	if qu.enqDeal(v) {
+		qu.deqLock.Lock()
+		defer qu.deqLock.Unlock()
+		qu.notEmptyCond.Broadcast()
 	}
 }
 
-func (q *UnBoundedQueue) Deq() interface{} {
-	q.deqLock.Lock()
-	defer q.deqLock.Unlock()
-	for ; atomic.LoadInt64(&q.size) == 0; {
-		q.notEmptyCond.Wait()
+func (qu *UnBoundedQueue) Deq() interface{} {
+	qu.deqLock.Lock()
+	defer qu.deqLock.Unlock()
+	for ; atomic.LoadInt64(&qu.size) == 0; {
+		qu.notEmptyCond.Wait()
 	}
-	result := q.head.next.v
-	q.head = q.head.next
-	atomic.AddInt64(&q.size, -1)
+	result := qu.head.next.v
+	qu.head = qu.head.next
+	atomic.AddInt64(&qu.size, -1)
 	return result
 }

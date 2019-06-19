@@ -28,33 +28,33 @@ func NewLockFreeQueue() *LockFreeQueue {
 	return &LockFreeQueue{head: head, tail: tail}
 }
 
-func (queue *LockFreeQueue) Enq(v interface{}) {
+func (qu *LockFreeQueue) Enq(v interface{}) {
 	node := newLockFreeQueueNode(v)
 	for ; true; {
-		lastRef := queue.tail.Get()
+		lastRef := qu.tail.Get()
 		last := lastRef.(*lockFreeQueueNode)
 		nextRef := last.next.Get()
-		if nextRef == nil {
+		if nextRef == nil { // "最后一个节点"的下一节点为nil
 			if last.next.CompareAndSet(nil, node) {
-				queue.tail.CompareAndSet(last, node)
+				qu.tail.CompareAndSet(last, node) // 只尝试一次,失败的话下一次Enq会重新调整qu.tail(在LINEA)
 				return
 			}
-		} else {
+		} else { // qu.tail还不是"最后的节点"(所以要先调整对)
 			next := nextRef.(*lockFreeQueueNode)
-			queue.tail.CompareAndSet(last, next)
+			qu.tail.CompareAndSet(last, next) // LINEA:上面调整qu.tail失败了,要重新调整
 		}
 	}
 }
 
-var backOffMinDelay  = int64(8 * time.Millisecond)
+var backOffMinDelay  = int64(2 * time.Millisecond)
 var backOffMaxDelay  = int64(1024 * time.Millisecond)
 
-func (queue *LockFreeQueue) Deq() interface{} {
+func (qu *LockFreeQueue) Deq() interface{} {
 	backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
 	for ; true; {
-		firstRef := queue.head.Get()
+		firstRef := qu.head.Get()
 		first := firstRef.(*lockFreeQueueNode)
-		lastRef := queue.tail.Get()
+		lastRef := qu.tail.Get()
 		last := lastRef.(*lockFreeQueueNode)
 		nextRef := first.next.Get()
 		if first == last {
@@ -63,11 +63,11 @@ func (queue *LockFreeQueue) Deq() interface{} {
 				continue
 			}
 			next := nextRef.(*lockFreeQueueNode)
-			queue.tail.CompareAndSet(last, next)
+			qu.tail.CompareAndSet(last, next)
 		} else {
 			next := nextRef.(*lockFreeQueueNode)
 			value := next.v
-			if queue.head.CompareAndSet(first, next) {
+			if qu.head.CompareAndSet(first, next) {
 				return value
 			}
 		}
@@ -75,10 +75,10 @@ func (queue *LockFreeQueue) Deq() interface{} {
 	panic("never here")
 }
 
-func (queue * LockFreeQueue) PrintAllElement() {
-	fmt.Printf("head:%v\n", queue.head.Get())
-	fmt.Printf("tail:%v\n", queue.tail.Get())
-	first := queue.head.Get()
+func (qu * LockFreeQueue) PrintAllElement() {
+	fmt.Printf("head:%v\n", qu.head.Get())
+	fmt.Printf("tail:%v\n", qu.tail.Get())
+	first := qu.head.Get()
 	var cur = first.(*lockFreeQueueNode)
 	for ;cur.next.Get() != nil ; {
 		next := cur.next.Get()

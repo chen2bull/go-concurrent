@@ -30,47 +30,47 @@ type boundedNode struct {
 }
 
 // enqDeal returns true if the queue must wake up Dequeuers.
-func (q *BoundedQueue) enqDeal(v interface{}) bool {
-	q.enqLock.Lock()
-	defer q.enqLock.Unlock()
-	for ; atomic.LoadInt64(&q.size) == atomic.LoadInt64(&q.capacity); {
-		q.notFullCond.Wait()
+func (qu *BoundedQueue) enqDeal(v interface{}) bool {
+	qu.enqLock.Lock()
+	defer qu.enqLock.Unlock()
+	for ; atomic.LoadInt64(&qu.size) == atomic.LoadInt64(&qu.capacity); {
+		qu.notFullCond.Wait()
 	}
 	e := &boundedNode{v: v}
-	q.tail.next = e
-	q.tail = e
-	//return atomic.GetAndAddInt64(&q.size, 1) == 0
+	qu.tail.next = e
+	qu.tail = e
+	//return atomic.GetAndAddInt64(&qu.size, 1) == 0
 	// 加完以后等于1,等价于加之前为0(go 没有GetAndAddInt64的原生支持,runtime/internal/atomic)
-	return atomic.AddInt64(&q.size, 1) == 1
+	return atomic.AddInt64(&qu.size, 1) == 1
 }
 
-func (q *BoundedQueue) Enq(v interface{}) {
-	if q.enqDeal(v) {
-		q.deqLock.Lock()
-		defer q.deqLock.Unlock()
-		q.notEmptyCond.Broadcast()
+func (qu *BoundedQueue) Enq(v interface{}) {
+	if qu.enqDeal(v) {
+		qu.deqLock.Lock()
+		defer qu.deqLock.Unlock()
+		qu.notEmptyCond.Broadcast()
 	}
 }
 
-func (q *BoundedQueue) deqDeal() (interface{}, bool) {
-	q.deqLock.Lock()
-	defer q.deqLock.Unlock()
-	for ; atomic.LoadInt64(&q.size) == 0; {
-		q.notEmptyCond.Wait()
+func (qu *BoundedQueue) deqDeal() (interface{}, bool) {
+	qu.deqLock.Lock()
+	defer qu.deqLock.Unlock()
+	for ; atomic.LoadInt64(&qu.size) == 0; {
+		qu.notEmptyCond.Wait()
 	}
-	result := q.head.next.v
-	q.head = q.head.next
-	return result, atomic.AddInt64(&q.size, -1) == atomic.LoadInt64(&q.capacity) - 1
+	result := qu.head.next.v
+	qu.head = qu.head.next
+	return result, atomic.AddInt64(&qu.size, -1) == atomic.LoadInt64(&qu.capacity) - 1
 }
 
-func (q *BoundedQueue) Deq() interface{} {
-	result, mustWakeEnqueuers := q.deqDeal()
+func (qu *BoundedQueue) Deq() interface{} {
+	result, mustWakeEnqueuers := qu.deqDeal()
 	if mustWakeEnqueuers {
 		// 惯用的稳妥作法,notFullCond.Wait的调用发生在获得锁enqLock以后
 		// 因此，notFullCond.Broadcast也在获得同一把锁的情况下调用
-		q.enqLock.Lock()
-		defer q.enqLock.Unlock()
-		q.notFullCond.Broadcast()
+		qu.enqLock.Lock()
+		defer qu.enqLock.Unlock()
+		qu.notFullCond.Broadcast()
 	}
 	return result
 }

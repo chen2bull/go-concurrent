@@ -28,32 +28,32 @@ func NewRecycleLockFreeQueue() *RecycleLockFreeQueue {
 	return &RecycleLockFreeQueue{head: head, tail: tail}
 }
 
-func (q *RecycleLockFreeQueue) Enq(v interface{}) {
+func (qu *RecycleLockFreeQueue) Enq(v interface{}) {
 	node := newRecycleLockFreeQueueNode(v)
 	for ; true; {
-		lastRef, lastStamp := q.tail.Get()
+		lastRef, lastStamp := qu.tail.Get()
 		last := lastRef.(*recycleLockFreeQueueNode)
 		nextRef, nextStamp := last.next.Get()
 		if nextRef == nil {
 			if last.next.CompareAndSet(nil, node, nextStamp, nextStamp+1) {
 				// 入队已完成, 尝试将tail向前移动,只尝试一次
-				q.tail.CompareAndSet(last, node, lastStamp, lastStamp+1)
+				qu.tail.CompareAndSet(last, node, lastStamp, lastStamp+1)
 				return
 			}
 		} else {
 			// try to swing tail to next node
 			next := nextRef.(*recycleLockFreeQueueNode)
-			q.tail.CompareAndSet(last, next, lastStamp, lastStamp+1)
+			qu.tail.CompareAndSet(last, next, lastStamp, lastStamp+1)
 		}
 	}
 }
 
-func (q *RecycleLockFreeQueue) Deq() interface{} {
+func (qu *RecycleLockFreeQueue) Deq() interface{} {
 	backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
 	for ; true; {
-		firstRef, firstStamp := q.head.Get()
+		firstRef, firstStamp := qu.head.Get()
 		first := firstRef.(*recycleLockFreeQueueNode)
-		lastRef, lastStamp := q.tail.Get()
+		lastRef, lastStamp := qu.tail.Get()
 		last := lastRef.(*recycleLockFreeQueueNode)
 		nextRef, _ := first.next.Get()
 		if first == last {
@@ -62,11 +62,11 @@ func (q *RecycleLockFreeQueue) Deq() interface{} {
 				continue
 			}
 			next := nextRef.(*recycleLockFreeQueueNode)
-			q.tail.CompareAndSet(last, next, lastStamp, lastStamp+1)
+			qu.tail.CompareAndSet(last, next, lastStamp, lastStamp+1)
 		} else {
 			next := nextRef.(*recycleLockFreeQueueNode)
 			value := next.v
-			if q.head.CompareAndSet(first, next, firstStamp, firstStamp+1) {
+			if qu.head.CompareAndSet(first, next, firstStamp, firstStamp+1) {
 				// TODO: 添加Recycle 功能 
 				return value
 			}
@@ -75,12 +75,12 @@ func (q *RecycleLockFreeQueue) Deq() interface{} {
 	panic("never here")
 }
 
-func (q * RecycleLockFreeQueue) PrintAllElement() {
-	head, headStamp := q.head.Get()
-	tail, tailStamp := q.tail.Get()
+func (qu * RecycleLockFreeQueue) PrintAllElement() {
+	head, headStamp := qu.head.Get()
+	tail, tailStamp := qu.tail.Get()
 	fmt.Printf("head:%v %v\n", head, headStamp)
 	fmt.Printf("tail:%v %v\n", tail, tailStamp)
-	head, _ = q.head.Get()
+	head, _ = qu.head.Get()
 	var cur = head.(*recycleLockFreeQueueNode)
 	for ;cur.next.GetReference() != nil ; {
 		next, nextStamp := cur.next.Get()

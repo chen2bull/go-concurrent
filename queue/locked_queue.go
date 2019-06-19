@@ -20,33 +20,33 @@ func NewLockedQueue(cap int) *LockedQueue {
 	return &LockedQueue{l, notFull, notEmpty, items, 0, 0, 0}
 }
 
-func (queue *LockedQueue) Enq(v interface{}) {
-	queue.Lock()
-	defer queue.Unlock()
-	for ; cap(queue.items) == queue.count; {
-		queue.notFull.Wait()
+func (qu *LockedQueue) Enq(v interface{}) {
+	qu.Lock()
+	defer qu.Unlock()
+	for ; cap(qu.items) == qu.count; {
+		qu.notFull.Wait()
 	}
-	queue.items[queue.tail] = v
-	queue.tail ++
-	if queue.tail == cap(queue.items) {
-		queue.tail = 0
+	qu.items[qu.tail] = v
+	qu.tail ++
+	if qu.tail == cap(qu.items) {
+		qu.tail = 0
 	}
-	queue.count ++
-	queue.notEmpty.Broadcast()	// 注意不是Signal,否则有可能发生唤醒丢失
+	qu.count ++
+	qu.notEmpty.Broadcast() // 注意不是Signal,否则有可能发生唤醒丢失
 }
 
-func (queue *LockedQueue) Deq() interface{} {
-	queue.Lock()
-	defer queue.Unlock()
-	for ; queue.count == 0; {
-		queue.notEmpty.Wait()
+func (qu *LockedQueue) Deq() interface{} {
+	qu.Lock()
+	defer qu.Unlock()
+	for ; qu.count == 0; {
+		qu.notEmpty.Wait()
 	}
-	v := queue.items[queue.head]
-	queue.head ++
-	if queue.head == cap(queue.items) {
-		queue.head = 0
+	v := qu.items[qu.head]
+	qu.head ++
+	if qu.head == cap(qu.items) {
+		qu.head = 0
 	}
-	queue.count --
-	queue.notFull.Broadcast()	// 注意不是Signal,否则有可能发生唤醒丢失
+	qu.count --
+	qu.notFull.Broadcast() // 注意不是Signal,否则有可能发生唤醒丢失
 	return v
 }
