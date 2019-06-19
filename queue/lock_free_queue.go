@@ -46,7 +46,7 @@ func (qu *LockFreeQueue) Enq(v interface{}) {
 	}
 }
 
-var backOffMinDelay  = int64(2 * time.Millisecond)
+var backOffMinDelay  = int64(4 * time.Millisecond)
 var backOffMaxDelay  = int64(1024 * time.Millisecond)
 
 func (qu *LockFreeQueue) Deq() interface{} {

@@ -35,19 +35,6 @@ func (sr *Reference) CompareAndSet(expectedV interface{}, newV interface{}) bool
 	return false
 }
 
-func (sr *Reference) CompareRefAndSet(expectedRef *Reference, newV interface{}) bool {
-	var old = atomic.LoadPointer(sr.p)
-
-	var cur = (*valueRef)(old)
-
-	if cur.value == expectedRef {
-		if cur.value != newV {
-			return atomic.CompareAndSwapPointer(sr.p, old, unsafe.Pointer(&valueRef{value: newV}))
-		}
-	}
-	return false
-}
-
 // Unconditionally sets the value
 func (sr *Reference) Set(newV interface{}) {
 	var old = atomic.LoadPointer(sr.p)
