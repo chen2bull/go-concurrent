@@ -2,29 +2,28 @@ package queue
 
 import (
 	"fmt"
-	atomic2 "github.com/cmingjian/go-concurrent/atomic"
-	"github.com/cmingjian/go-concurrent/lock"
+	"github.com/cmingjian/go-concurrent/atomic"
 	"time"
 )
 
 type LockFreeQueue struct {
-	head, tail *atomic2.Reference
+	head, tail *atomic.Reference
 }
 
 type lockFreeQueueNode struct {
 	v    interface{}
-	next *atomic2.Reference
+	next *atomic.Reference
 }
 
 func newLockFreeQueueNode(v interface{}) *lockFreeQueueNode {
-	next := atomic2.NewReference(nil) // next永远不为nil，next结构中的value有可能为nil
+	next := atomic.NewReference(nil) // next永远不为nil，next结构中的value有可能为nil
 	return &lockFreeQueueNode{v: v, next: next}
 }
 
 func NewLockFreeQueue() *LockFreeQueue {
 	sentinel := newLockFreeQueueNode(nil)
-	head := atomic2.NewReference(sentinel)
-	tail := atomic2.NewReference(sentinel)
+	head := atomic.NewReference(sentinel)
+	tail := atomic.NewReference(sentinel)
 	return &LockFreeQueue{head: head, tail: tail}
 }
 
@@ -47,11 +46,11 @@ func (qu *LockFreeQueue) Enq(v interface{}) {
 	}
 }
 
-var backOffMinDelay  = int64(4 * time.Millisecond)
-var backOffMaxDelay  = int64(1024 * time.Millisecond)
+var backOffMinDelay = int64(4 * time.Millisecond)
+var backOffMaxDelay = int64(1024 * time.Millisecond)
 
 func (qu *LockFreeQueue) Deq() interface{} {
-	backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
+	backoff := atomic.NewBackOff(backOffMinDelay, backOffMaxDelay)
 	for ; true; {
 		firstRef := qu.head.Get()
 		first := firstRef.(*lockFreeQueueNode)
@@ -76,12 +75,12 @@ func (qu *LockFreeQueue) Deq() interface{} {
 	panic("never here")
 }
 
-func (qu * LockFreeQueue) PrintAllElement() {
+func (qu *LockFreeQueue) PrintAllElement() {
 	fmt.Printf("head:%v\n", qu.head.Get())
 	fmt.Printf("tail:%v\n", qu.tail.Get())
 	first := qu.head.Get()
 	var cur = first.(*lockFreeQueueNode)
-	for ;cur.next.Get() != nil ; {
+	for ; cur.next.Get() != nil; {
 		next := cur.next.Get()
 		cur = next.(*lockFreeQueueNode)
 		fmt.Printf("cur.v,%v\n", cur.v)

@@ -3,7 +3,6 @@ package queue
 import (
 	"fmt"
 	"github.com/cmingjian/go-concurrent/atomic"
-	"github.com/cmingjian/go-concurrent/lock"
 )
 
 type RecycleLockFreeQueue struct {
@@ -49,7 +48,7 @@ func (qu *RecycleLockFreeQueue) Enq(v interface{}) {
 }
 
 func (qu *RecycleLockFreeQueue) Deq() interface{} {
-	backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
+	backoff := atomic.NewBackOff(backOffMinDelay, backOffMaxDelay)
 	for ; true; {
 		firstRef, firstStamp := qu.head.Get()
 		first := firstRef.(*recycleLockFreeQueueNode)
@@ -75,14 +74,14 @@ func (qu *RecycleLockFreeQueue) Deq() interface{} {
 	panic("never here")
 }
 
-func (qu * RecycleLockFreeQueue) PrintAllElement() {
+func (qu *RecycleLockFreeQueue) PrintAllElement() {
 	head, headStamp := qu.head.Get()
 	tail, tailStamp := qu.tail.Get()
 	fmt.Printf("head:%v %v\n", head, headStamp)
 	fmt.Printf("tail:%v %v\n", tail, tailStamp)
 	head, _ = qu.head.Get()
 	var cur = head.(*recycleLockFreeQueueNode)
-	for ;cur.next.GetReference() != nil ; {
+	for ; cur.next.GetReference() != nil; {
 		next, nextStamp := cur.next.Get()
 		cur = next.(*recycleLockFreeQueueNode)
 		fmt.Printf("cur.v,%v, stamp, %v\n", cur.v, nextStamp)

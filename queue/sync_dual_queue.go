@@ -2,7 +2,6 @@ package queue
 
 import (
 	"github.com/cmingjian/go-concurrent/atomic"
-	"github.com/cmingjian/go-concurrent/lock"
 )
 
 type SyncDualQueue struct {
@@ -50,7 +49,7 @@ func newSyncDualReservationNode() *syncDualQueueNode {
 
 func (qu *SyncDualQueue) Enq(value interface{}) {
 	offer := newSyncDualItemNode(value)
-	backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
+	backoff := atomic.NewBackOff(backOffMinDelay, backOffMaxDelay)
 	var counter = 0
 	for ; true; {
 		tailRef := qu.tail.Get()
@@ -106,7 +105,7 @@ var syncDualSpinCount = 500
 
 func (qu *SyncDualQueue) Deq() interface{} {
 	offer := newSyncDualReservationNode()
-	backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
+	backoff := atomic.NewBackOff(backOffMinDelay, backOffMaxDelay)
 	var counter = 0
 	for ; true; {
 		headRef := qu.head.Get()
