@@ -1,8 +1,8 @@
 package queue
 
 import (
-	"fmt"
 	"github.com/cmingjian/go-concurrent/atomic"
+	"github.com/cmingjian/go-concurrent/lock"
 )
 
 type SyncDualQueue struct {
@@ -48,16 +48,10 @@ func newSyncDualReservationNode() *syncDualQueueNode {
 	return &syncDualQueueNode{nodeType: nodeTypeReservation, item: item, next: next}
 }
 
-func (node *syncDualQueueNode) changeNodeType(nodeType syncDualQueueNodeType) {
-	if node.nodeType == nodeType {
-		panic(fmt.Sprintf("type not change,nodeType:%v", nodeType))
-	}
-	node.nodeType = nodeType
-}
-
 func (qu *SyncDualQueue) Enq(value interface{}) {
 	offer := newSyncDualItemNode(value)
-	//backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
+	backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
+	var counter = 0
 	for ; true; {
 		tailRef := qu.tail.Get()
 		tail := tailRef.(*syncDualQueueNode)
@@ -69,16 +63,19 @@ func (qu *SyncDualQueue) Enq(value interface{}) {
 			tNextRef := tail.next.Get()
 			if tNextRef == nil {
 				if tail.next.CompareAndSet(tail, offer) {
-					qu.tail.CompareAndSet(tail, offer) // 只尝试一次,失败的话下一次Enq会重新调整qu.tail(在LINEA)
+					qu.tail.CompareAndSet(tail, offer)
 					for ; offer.item.Get() != nil; {
-						//backoff.BackOffWait() // spin
+						counter ++ // spin
+						if counter > syncDualSpinCount {
+							counter = 0
+							backoff.BackOffWait()
+						}
 					}
 					headRef := qu.head.Get()
 					head := headRef.(*syncDualQueueNode)
 					if offer == head.next.Get() {
 						qu.head.CompareAndSet(head, offer)
 					}
-					//fmt.Printf("Enq AAAA:%v\n", value)
 					return
 				}
 			} else { // qu.tail还不是"最后的节点"(所以要先调整)
@@ -88,44 +85,54 @@ func (qu *SyncDualQueue) Enq(value interface{}) {
 		} else {
 			hNextRef := head.next.Get()
 			if hNextRef == nil {
+				counter = counter + 5 // spins here is costly than continuously call offer.item.Get()
+				if counter > syncDualSpinCount {
+					counter = 0
+					backoff.BackOffWait()
+				}
 				continue
 			}
 			next := hNextRef.(*syncDualQueueNode)
 			success := next.item.CompareAndSet(nil, &syncDualValue{v: value})
 			qu.head.CompareAndSet(head, next)
 			if success {
-				//fmt.Printf("Enq BBBB:%v\n", value)
 				return
 			}
 		}
 	}
 }
 
+var syncDualSpinCount = 500
+
 func (qu *SyncDualQueue) Deq() interface{} {
 	offer := newSyncDualReservationNode()
-	//backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
+	backoff := lock.NewBackOff(backOffMinDelay, backOffMaxDelay)
+	var counter = 0
 	for ; true; {
-		headRef :=qu.head.Get()
+		headRef := qu.head.Get()
 		head := headRef.(*syncDualQueueNode)
-		tailRef :=qu.tail.Get()
+		tailRef := qu.tail.Get()
 		tail := tailRef.(*syncDualQueueNode)
 		// head == tail 表示队列为空,
-		// tail.nodeType == nodeTypeReservation表示tail以及tail的前面有没有nodeTypeItem节点!!!!
+		// 元素都是从头往后取的,且Enq时只要tail是nodeTypeItem都会在tail后面加入节点,
 		if head == tail || tail.nodeType == nodeTypeReservation {
 			tNextRef := tail.next.Get()
 			if tNextRef == nil {
 				if tail.next.CompareAndSet(nil, offer) {
 					qu.tail.CompareAndSet(tail, offer)
-					for;offer.item.Get() == nil; {
-						//backoff.BackOffWait() // spin
+					for ; offer.item.Get() == nil; {
+						counter ++ // spin
+						if counter > syncDualSpinCount {
+							counter = 0
+							backoff.BackOffWait()
+						}
 					}
 					headRef = qu.head.Get()
 					head = headRef.(*syncDualQueueNode)
 					if offer == head.next.Get() {
 						qu.head.CompareAndSet(head, offer)
 					}
-					item :=  offer.item.Get().(*syncDualValue)
-					//fmt.Printf("Deq AAAAA:%v\n", item.v)
+					item := offer.item.Get().(*syncDualValue)
 					return item.v
 				}
 			} else {
@@ -135,15 +142,19 @@ func (qu *SyncDualQueue) Deq() interface{} {
 		} else {
 			hNextRef := head.next.Get()
 			if hNextRef == nil {
+				counter = counter + 5 // spins here is costly than continuously call offer.item.Get()
+				if counter > syncDualSpinCount {
+					counter = 0
+					backoff.BackOffWait()
+				}
 				continue
 			}
 			next := hNextRef.(*syncDualQueueNode)
 			itemRef := next.item.Get()
 			item := itemRef.(*syncDualValue)
-			success := next.item.CompareAndSet(item, nil)
+			success := next.item.CompareAndSet(item, nil) // 如果失败了,一定是另一个协程Deq成功了
 			qu.head.CompareAndSet(head, next)
 			if success {
-				//fmt.Printf("Deq BBBB:%v\n", item.v)
 				return item.v
 			}
 		}

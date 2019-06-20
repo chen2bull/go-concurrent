@@ -1,0 +1,3 @@
+package stack
+
+var stackMinDelay =

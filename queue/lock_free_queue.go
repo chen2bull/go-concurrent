@@ -36,7 +36,8 @@ func (qu *LockFreeQueue) Enq(v interface{}) {
 		nextRef := last.next.Get()
 		if nextRef == nil { // "最后一个节点"的下一节点为nil
 			if last.next.CompareAndSet(nil, node) {
-				qu.tail.CompareAndSet(last, node) // 只尝试一次,失败的话下一次Enq会重新调整qu.tail(在LINEA)
+				// 只尝试一次,失败的话表示另一个协程已经调整过qu.tail,下一次Enq会重新调整qu.tail(在LINEA)
+				qu.tail.CompareAndSet(last, node)
 				return
 			}
 		} else { // qu.tail还不是"最后的节点"(所以要先调整对)
