@@ -6,7 +6,7 @@ import (
 )
 
 type stampedPair struct {
-	value     interface{}
+	value interface{}
 	stamp int64
 }
 
@@ -59,10 +59,10 @@ func (sr *StampedReference) AttemptStamp(expectedV interface{}, newStamp int64) 
 
 // Unconditionally sets both the value and stamp.
 func (sr *StampedReference) Set(newV interface{}, newStamp int64) {
+	var newP = unsafe.Pointer(&stampedPair{value: newV, stamp: newStamp})
 	var old = atomic.LoadPointer(sr.p)
 	var cur = (*stampedPair)(old)
 	if newV != cur.value || newStamp != cur.stamp {
-		p := unsafe.Pointer(&stampedPair{value: newV, stamp: newStamp})
-		sr.p = &p
+		atomic.StorePointer(sr.p, newP)
 	}
 }
