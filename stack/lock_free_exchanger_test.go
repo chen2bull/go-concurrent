@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-var ExchangerGoroutineNum = 2
+var ExchangerGoroutineNum = 4
 var ExchangerCount = ExchangerGoroutineNum * 64
 var ExchangerPerRoutine = ExchangerCount / ExchangerGoroutineNum
 
@@ -28,7 +28,9 @@ func runExchange(exchanger *LockFreeExchanger, goID int, wg *sync.WaitGroup, tim
 			}
 			wg2.Done()
 		}()
-		wg2.Wait()
+		if j % 2 == 1 { // 每次都有两个在等Exchange
+			wg2.Wait()
+		}
 	}
 	wg.Done()
 }
@@ -46,7 +48,7 @@ func TestLockFreeExchanger_Exchange(t *testing.T) {
 	go func(iChan chan interface{}) {
 		var intMap = make(map[int]bool)
 		for v := range iChan {
-			fmt.Printf("value,%v\n", v)
+			//fmt.Printf("value,%v\n", v)
 			value := v.(int)
 			if intMap[value] {
 				t.Errorf("duplicate pop|v:%d", v)
@@ -65,7 +67,7 @@ func runExchangeNil(exchanger *LockFreeExchanger, wg *sync.WaitGroup, timeOut ti
 	wg2 := sync.WaitGroup{}
 	for j := 0; j < ExchangerPerRoutine; j++ {
 		wg2.Add(1)
-		go func() {
+		go func(j int) {
 			//fmt.Printf("start exchange|v:%v i:%v j:%v\n", v, goID, j)
 			exValue, ok := exchanger.Exchange(nil, timeOut)
 			if ok {
@@ -75,8 +77,10 @@ func runExchangeNil(exchanger *LockFreeExchanger, wg *sync.WaitGroup, timeOut ti
 				panic(fmt.Sprintf("unexpected timeout|j:%v\n", j))
 			}
 			wg2.Done()
-		}()
-		wg2.Wait()
+		}(j)
+		if j % 2 == 1 { // 每次都有两个在等Exchange
+			wg2.Wait()
+		}
 	}
 	wg.Done()
 }
