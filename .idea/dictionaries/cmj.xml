@@ -2,6 +2,7 @@
   <dictionary name="cmj">
     <words>
       <w>backoff</w>
+      <w>blancer</w>
       <w>dequeuers</w>
       <w>enqueuers</w>
       <w>goutine</w>
