@@ -2,24 +2,24 @@ package counting
 
 import "sync/atomic"
 
-type blancer struct {
+type Balancer struct {
 	p *int32
 }
 
-func newBlancer() *blancer {
+func NewBlancer() *Balancer {
 	a := blancerHigh
-	return &blancer{&a}
+	return &Balancer{&a}
 }
 
 const (
-	blancerHigh = int32(1)
-	blancerLow  = int32(-1)
+	blancerHigh = int32(0)
+	blancerLow  = int32(1)
 )
 
-func (b blancer) traverse() int32 {
+func (b Balancer) Traverse() int {
 	oldValue := atomic.LoadInt32(b.p)
 	for ; !atomic.CompareAndSwapInt32(b.p, oldValue, -oldValue); {
 		oldValue = atomic.LoadInt32(b.p)
 	}
-	return oldValue
+	return int(oldValue)
 }
