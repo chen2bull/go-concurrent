@@ -14,9 +14,9 @@ func NewBitonic(size int) *Bitonic {
 	halfSize := size / 2
 	if size > 2 {
 		half := []*Bitonic{NewBitonic(halfSize), NewBitonic(halfSize)}
-		return &Bitonic{half: half, layer: layer}
+		return &Bitonic{half: half, layer: layer, size: size}
 	}
-	return &Bitonic{layer: layer}
+	return &Bitonic{layer: layer, size: size}
 }
 
 func (b *Bitonic) Traverse(input int) int {

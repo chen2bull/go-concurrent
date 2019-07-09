@@ -18,9 +18,9 @@ func NewMerger(size int) *Merger {
 	if size > 2 {
 		// 根据图12-12 左边的逻辑图,Merger[2k] 由两个Merger[k] 后加一个balancer组成
 		half := []*Merger{NewMerger(halfSize), NewMerger(halfSize)}
-		return &Merger{half: half, layer: layer}
+		return &Merger{half: half, layer: layer, size: size}
 	}
-	return &Merger{layer: layer}
+	return &Merger{layer: layer, size: size}
 }
 
 func (m *Merger) Traverse(input int) int {
