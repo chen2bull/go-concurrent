@@ -8,6 +8,7 @@
       <w>dequeuers</w>
       <w>enqueuers</w>
       <w>goutine</w>
+      <w>hashable</w>
       <w>markable</w>
       <w>struct</w>
       <w>succ</w>

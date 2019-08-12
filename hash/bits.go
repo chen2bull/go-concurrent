@@ -58,4 +58,3 @@ func lookupReverse(key int) int {
 		(TableBitReverse[(key>>8)&0xff] << 8) |
 		TableBitReverse[(key>>16)&0xff]
 }
-

@@ -15,6 +15,71 @@ func NewBucketList() *BucketList {
 	return &BucketList{head: head}
 }
 
+func (bl *BucketList) Add(value Hashable) bool {
+	key := makeRegularKey(value)
+	splice := false
+	for ; true; {
+		pred, curr := bl.head.find(key)
+		if curr.key == key { // is the key present?
+			return false
+		} else {
+			entry := newBucketListNode(key, value)
+			entry.next.Set(curr, false)
+			splice = pred.next.CompareAndSet(curr, entry, false, false)
+			if splice {
+				return true
+			} /*else {
+				continue
+			}*/
+		}
+	}
+	panic("never here")
+}
+
+func (bl *BucketList) Contains(value Hashable) bool {
+	key := makeRegularKey(value)
+	_, curr := bl.head.find(key)
+	return curr.key == key
+}
+
+func (bl *BucketList) Remove(value Hashable) bool {
+	key := makeRegularKey(value)
+	for ; true; {
+		pred, curr := bl.head.find(key)
+		if curr.key != key {
+			return false
+		} else {
+			snip := pred.next.AttemptMark(curr, true)
+			if snip {
+				return true
+			} /*else {
+				continue
+			}*/
+		}
+	}
+	panic("never here")
+}
+
+func (bl *BucketList) getSentinel(index int) *BucketList {
+	key := makeSentinelKey(index)
+	for ;true; {
+		pred, curr := bl.head.find(key)
+		if curr.key == key {
+			return curr.warpAsBucketList()
+		} else {
+			entry := newBucketListSentinelNode(key)
+			entry.next.Set(pred.next.GetReference(), false)
+			splice := pred.next.CompareAndSet(curr, entry, false, false)
+			if splice {
+				return entry.warpAsBucketList()
+			} /*else {
+
+			}*/
+		}
+	}
+	panic("never here")
+}
+
 type bucketListNode struct {
 	key   int
 	value interface{}
@@ -34,7 +99,9 @@ func newBucketListSentinelNode(key int) *bucketListNode { // sentinel constructo
 func (node *bucketListNode) getNext() *bucketListNode {
 	var currMarked bool
 	entryRef, currMarked := node.next.Get()
-	for ; currMarked; { // 如果marked表示该元素已经删除了,既然已标记删除,那么value肯定不会为nil
+	for ; currMarked; {
+		// 如果marked表示该元素已经删除了,既然已标记删除,那么value肯定不会为nil
+		// 列表肯定会有值,因为列表中,有数值为0的Sentinel节点,也有数值为math.MaxInt32的Sentinel节点
 		entry := entryRef.(bucketListNode)
 		succRef, succMarked := entry.next.Get()
 		node.next.CompareAndSet(entryRef, succRef, true, succMarked)
@@ -48,9 +115,13 @@ func (node *bucketListNode) getNext() *bucketListNode {
 func (node *bucketListNode) find(key int) (*bucketListNode, *bucketListNode) {
 	pred := node
 	curr := pred.getNext()
-	for ; curr.key < key; {	// 列表有值为0和math.MaxInt32的哨兵
+	for ; curr.key < key; { // 列表有值为0和math.MaxInt32的哨兵
 		pred = curr
 		curr = pred.getNext()
 	}
 	return pred, curr
+}
+
+func (node *bucketListNode) warpAsBucketList() *BucketList {
+	return &BucketList{head: node}
 }
