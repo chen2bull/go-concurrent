@@ -60,7 +60,7 @@ func (bl *BucketList) Remove(value Hashable) bool {
 	panic("never here")
 }
 
-func (bl *BucketList) getSentinel(index int) *BucketList {
+func (bl *BucketList) getSentinel(index int32) *BucketList {
 	key := makeSentinelKey(index)
 	for ;true; {
 		pred, curr := bl.head.find(key)
@@ -81,17 +81,17 @@ func (bl *BucketList) getSentinel(index int) *BucketList {
 }
 
 type bucketListNode struct {
-	key   int
+	key   int32
 	value interface{}
 	next  *atomic.MarkableReference
 }
 
-func newBucketListNode(key int, value interface{}) *bucketListNode { // usual constructor
+func newBucketListNode(key int32, value interface{}) *bucketListNode { // usual constructor
 	next := atomic.NewMarkableReference(nil, false) // next永远不为nil，next结构中的value有可能为nil
 	return &bucketListNode{key: key, value: value, next: next}
 }
 
-func newBucketListSentinelNode(key int) *bucketListNode { // sentinel constructor
+func newBucketListSentinelNode(key int32) *bucketListNode { // sentinel constructor
 	next := atomic.NewMarkableReference(nil, false) // next永远不为nil，next结构中的value有可能为nil
 	return &bucketListNode{key: key, next: next}
 }
@@ -112,7 +112,7 @@ func (node *bucketListNode) getNext() *bucketListNode {
 }
 
 // 只能用与head
-func (node *bucketListNode) find(key int) (*bucketListNode, *bucketListNode) {
+func (node *bucketListNode) find(key int32) (*bucketListNode, *bucketListNode) {
 	pred := node
 	curr := pred.getNext()
 	for ; curr.key < key; { // 列表有值为0和math.MaxInt32的哨兵

@@ -1,13 +1,13 @@
 package hash
 
 const (
-	Mask     = 0x00FFFFFF
-	HiMask   = 0x00800000
-	LoMask   = 0x00000001
-	WordSize = 24
+	Mask     int32 = 0x00FFFFFF
+	HiMask   int32 = 0x00800000
+	LoMask   int32 = 0x00000001
+	WordSize int32 = 24
 )
 
-var TableBitReverse = [...]int{
+var TableBitReverse = [...]int32{
 	0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0,
 	0x08, 0x88, 0x48, 0xC8, 0x28, 0xA8, 0x68, 0xE8, 0x18, 0x98, 0x58, 0xD8, 0x38, 0xB8, 0x78, 0xF8,
 	0x04, 0x84, 0x44, 0xC4, 0x24, 0xA4, 0x64, 0xE4, 0x14, 0x94, 0x54, 0xD4, 0x34, 0xB4, 0x74, 0xF4,
@@ -27,23 +27,23 @@ var TableBitReverse = [...]int{
 }
 
 type Hashable interface {
-	hashCode() int
+	hashCode() int32
 }
 
-func makeRegularKey(hb Hashable) int {
+func makeRegularKey(hb Hashable) int32 {
 	code := hb.hashCode() & Mask
 	return reverse(code | HiMask)
 }
 
-func makeSentinelKey(key int) int {
+func makeSentinelKey(key int32) int32 {
 	return reverse(key & Mask)
 }
 
-func reverse(key int) int {
+func reverse(key int32) int32 {
 	loMask := LoMask
 	hiMask := HiMask
-	result := 0
-	for i := 0; i < WordSize; i++ {
+	result := int32(0)
+	for i := int32(0); i < WordSize; i++ {
 		if (key & loMask) != 0 { // bit set
 			result |= hiMask
 		}
@@ -53,8 +53,15 @@ func reverse(key int) int {
 	return result
 }
 
-func lookupReverse(key int) int {
+func lookupReverse(key int32) int32 {
 	return (TableBitReverse[key&0xff] << 16) |
 		(TableBitReverse[(key>>8)&0xff] << 8) |
 		TableBitReverse[(key>>16)&0xff]
+}
+
+func Abs(x int32) int32 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
