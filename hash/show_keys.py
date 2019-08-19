@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.6
 """
-这个文件展示为什么sentinel_key的计算方法和原因。
+这个文件展示为什么sentinel_key的计算方法和原因。(recursive split-ordering)
 
 我们设input_value是bucket数组中的下标，那么calc_key(input_value)就是哈希表中哨兵节点的key值
 随着input_value的增加和calc_key(input_value)的返回值如下表所示:
@@ -71,13 +71,15 @@ def main():
     for input_val in range(100):
         print(calc_key(input_val))
     print("===============================")
-    for input_val in range(15):
+    for input_val in range(16):
         index = input_val
         parent = calc_parent(input_val, 16)
         index_key = calc_key(index)
         parent_key = calc_key(parent)
-        print("index:{0:4b}({0:d}) parent:{1:4b}({1:d}) index_key:{2:s} parent_key:{3:s}".format(
-            input_val, parent, index_key, parent_key))
+        pp = calc_parent(parent, 16)
+        pp_key = calc_key(pp)
+        print("index:{0:4b}({0:d}) parent:{1:4b}({1:d}) pp:{4:4b}({4:d}) index_key:{2:s} parent_key:{3:s} pp_key:{5:s}".format(
+            input_val, parent, index_key, parent_key, pp, pp_key))
 
 
 if __name__ == '__main__':
