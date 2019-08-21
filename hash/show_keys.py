@@ -32,10 +32,24 @@ bucket array长度为2^N的时候,下标0,1,2,3,...,(2^N-1)对应的calc_key(inp
 因此，bucket array一种比较合适的增长方式是，长度每次都变成原来的2倍。key值为calc_key(index)的‘哨兵’，正好等分哈希表。
 并且，bucket array长度由2^n变成2^(n+1)的时候，bucket array下标为0～(2^n-1)的哈希值不需要重算！！！
 
+举个例子,在桶数组的容量为4的时候,哈希值为1,5,9,13的元素都落在来了同一个桶1中,当桶数组的容量变成8以后,1和9仍然在桶1中,
+哈希值为5和13的元素就落在桶5中了.没有移动元素,达到扩张哈希表的目的，桶1可以访问的元素被划分到桶1和桶5了.
+桶数组resize那一刻,如果某线程A正在通过桶1访问元素，即使另一线程B已经把桶大小变成8，线程A仍然可以通过桶1访问元素。
+
 只要bucket array的容量不大于2^23，那么calc_key(input_value)返回值的最低1位就不会为1。因此，只要限制bucket_list的
-大小不超过2^23（对于哈希表来说，这是非常大的一个值）
+大小不超过2^23（这是非常大的一个值,而且哈希表的容量=桶数组的容量*L,L is a small integer denoting the load factor）
 实现无锁哈希表的时候，即使bucket array不按“长度每次都变成原来的2倍”的方式来增长的话，无锁哈希表也可以正常地工作。
 
+
+parent bucket是什么？
+bucket array的size是动态增长的。在插入某个元素的时候，需要从对应的bucketA哨兵节点开始遍历并找到合适的位置插入元素。
+如果bucketA未初始化，需要将它初始化。而初始化的时候，需要插入哨兵节点。那么从什么位置开始遍历并插入哨兵节点呢？
+理论上可以都从0桶的哨兵节点开始遍历，但为了加快桶初始化的效率，引入parent bucket的概念。
+
+parent bucket是可以选择的，要满足以下：
+calc_key(parent bucket的下标) < calc_key(bucketA的下标)
+parent bucket的下标 < bucketA的下标
+It is also wise to choose parent to be as close as possible to bucket in the list, but still preceding it.
 
 """
 
@@ -76,10 +90,8 @@ def main():
         parent = calc_parent(input_val, 16)
         index_key = calc_key(index)
         parent_key = calc_key(parent)
-        pp = calc_parent(parent, 16)
-        pp_key = calc_key(pp)
-        print("index:{0:4b}({0:d}) parent:{1:4b}({1:d}) pp:{4:4b}({4:d}) index_key:{2:s} parent_key:{3:s} pp_key:{5:s}".format(
-            input_val, parent, index_key, parent_key, pp, pp_key))
+        print("index:{0:4b}({0:d}) parent:{1:4b}({1:d}) index_key:{2:s} parent_key:{3:s}".format(
+            input_val, parent, index_key, parent_key))
 
 
 if __name__ == '__main__':
