@@ -1,13 +1,16 @@
 package hash
 
 const (
-	Mask     int32 = 0x00FFFFFF
-	HiMask   int32 = 0x00800000
-	LoMask   int32 = 0x00000001
-	WordSize int32 = 24
+	WordSize          int32   = 30
+	Mask              int32   = 0x3FFFFFFF
+	LoMask            int32   = 0x00000001
+	HiMask            int32   = 0x40000000
+	MaxCap            int32   = 0x20000000 // 1 << 29，bucket数组的最大容量，可以保证最大下标的HiMask必然为0
+	MinCap            int32   = 32         // Must be a power of 2
+	DefaultLoadFactor float64 = 4          // float64(mapSizeNow)/float64(bucketSizeNow)  > DefaultLoadFactor的时候，扩展桶数组
 )
 
-var TableBitReverse = [...]int32{
+var tableBitReverse = [...]int32{
 	0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0,
 	0x08, 0x88, 0x48, 0xC8, 0x28, 0xA8, 0x68, 0xE8, 0x18, 0x98, 0x58, 0xD8, 0x38, 0xB8, 0x78, 0xF8,
 	0x04, 0x84, 0x44, 0xC4, 0x24, 0xA4, 0x64, 0xE4, 0x14, 0x94, 0x54, 0xD4, 0x34, 0xB4, 0x74, 0xF4,
@@ -26,19 +29,16 @@ var TableBitReverse = [...]int32{
 	0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F, 0xEF, 0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF,
 }
 
-type Hashable interface {
-	hashCode() int32
-}
-
-func makeRegularKey(hb Hashable) int32 {
-	code := hb.hashCode() & Mask
+func makeRegularKey(rawKey Hashable) int32 {
+	code := rawKey.hashCode() & Mask
 	return reverse(code | HiMask)
 }
 
-func makeSentinelKey(key int32) int32 {
-	return reverse(key & Mask)
+func makeSentinelKey(hashKey int32) int32 {
+	return reverse(hashKey & Mask)
 }
 
+// reverse前必须已经 & Mask
 func reverse(key int32) int32 {
 	loMask := LoMask
 	hiMask := HiMask
@@ -53,15 +53,41 @@ func reverse(key int32) int32 {
 	return result
 }
 
-func lookupReverse(key int32) int32 {
-	return (TableBitReverse[key&0xff] << 16) |
-		(TableBitReverse[(key>>8)&0xff] << 8) |
-		TableBitReverse[(key>>16)&0xff]
+func lookupReverse(hash int32) int32 {
+	b1 := tableBitReverse[hash&0xff] << 23      // 23==16 + 7
+	b2 := tableBitReverse[(hash>>8)&0xff] << 15 // 15 == 8 + 7
+	b3 := tableBitReverse[(hash>>16)&0xff] << 7
+	b4 := tableBitReverse[((hash >> 24) << 1)] // 右移完再左移一位，最低位肯定为0，翻转后就只有最低位
+	return b1 | b2 | b3 | b4
 }
 
-func Abs(x int32) int32 {
+func abs(x int32) int32 {
 	if x < 0 {
 		return -x
 	}
 	return x
+}
+
+// Returns a power of two table size for the given desired capacity.
+func tableSizeFor(c int32) int32 {
+	if c <= MinCap {
+		return MinCap
+	}
+	if c >= MaxCap {
+		return MaxCap
+	}
+	n := c - 1
+	n |= n >> 1
+	n |= n >> 2
+	n |= n >> 4
+	n |= n >> 8
+	n |= n >> 16
+	if n+1 >= MaxCap {
+		return MaxCap
+	}
+	return n + 1
+}
+
+func isPowerOfTwo(x int32) bool {
+	return (x != 0) && ((x & (^x + 1)) == x)
 }

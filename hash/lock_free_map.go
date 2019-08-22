@@ -22,7 +22,7 @@ func NewLockFreeMap(capacity int) *LockFreeMap {
 
 func (lfMap *LockFreeMap) Add(value Hashable) bool {
 	bucketSize := atomic.LoadInt32(&lfMap.bucketSize)
-	myBucket := Abs(value.hashCode() % bucketSize)
+	myBucket := abs(value.hashCode() % bucketSize)
 	bl := lfMap.getBucketList(myBucket)
 	if !bl.Add(value) {
 		return false
@@ -38,7 +38,7 @@ func (lfMap *LockFreeMap) Add(value Hashable) bool {
 
 func (lfMap *LockFreeMap) Remove(value Hashable) bool {
 	bucketSize := atomic.LoadInt32(&lfMap.bucketSize)
-	myBucket := Abs(value.hashCode() % bucketSize)
+	myBucket := abs(value.hashCode() % bucketSize)
 	b := lfMap.getBucketList(myBucket)
 	if !b.Remove(value) {
 		return false
@@ -48,7 +48,7 @@ func (lfMap *LockFreeMap) Remove(value Hashable) bool {
 
 func (lfMap *LockFreeMap) Contains(value Hashable) bool {
 	bucketSize := atomic.LoadInt32(&lfMap.bucketSize)
-	myBucket := Abs(value.hashCode() % bucketSize)
+	myBucket := abs(value.hashCode() % bucketSize)
 	b := lfMap.getBucketList(myBucket)
 	return b.Contains(value)
 }
