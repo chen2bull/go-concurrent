@@ -7,9 +7,15 @@
       <w>blancer</w>
       <w>dequeuers</w>
       <w>enqueuers</w>
+      <w>fastrand</w>
       <w>goutine</w>
       <w>hashable</w>
+      <w>hashkey</w>
+      <w>interequal</w>
       <w>markable</w>
+      <w>memhash</w>
+      <w>nilinterequal</w>
+      <w>strequal</w>
       <w>struct</w>
       <w>succ</w>
     </words>

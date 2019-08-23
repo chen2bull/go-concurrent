@@ -6,9 +6,10 @@ import (
 )
 
 func TestReverse(t *testing.T) {
-	for i := int32(0); i < Mask; i++ {
-		a := reverse(i)
-		b := lookupReverse(i)
+	for i := int32(0); i < 0xFFFF; i++ {
+		v := rand.Int31n(Mask)
+		a := reverse(v)
+		b := lookupReverse(v)
 		if a != b {
 			t.Fatalf("error i:%v a:%v b:%v", i, a, b)
 		}
