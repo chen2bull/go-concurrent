@@ -18,10 +18,24 @@ func assertInt32(v interface{}) {
 	}
 }
 
+func assertUint32(v interface{}) {
+	_, ok := v.(uint32)
+	if !ok {
+		panic(fmt.Sprintf("key %v is not uint32", v))
+	}
+}
+
 func assertInt64(v interface{}) {
 	_, ok := v.(int64)
 	if !ok {
 		panic(fmt.Sprintf("key %v is not int64", v))
+	}
+}
+
+func assertUint64(v interface{}) {
+	_, ok := v.(uint64)
+	if !ok {
+		panic(fmt.Sprintf("key %v is not uint64", v))
 	}
 }
 
@@ -65,7 +79,9 @@ var keyTypeMap [lenOfKeyTypeEnum] typeFuncs
 func init() {
 	keyTypeMap = [lenOfKeyTypeEnum]typeFuncs{
 		KeyTypeInt32:   {algarray[alg_MEM32].hash, algarray[alg_MEM32].equal, assertInt32},
+		KeyTypeUint32:   {algarray[alg_MEM32].hash, algarray[alg_MEM32].equal, assertUint32},
 		KeyTypeInt64:   {algarray[alg_MEM64].hash, algarray[alg_MEM64].equal, assertInt64},
+		KeyTypeUint64:   {algarray[alg_MEM64].hash, algarray[alg_MEM64].equal, assertUint64},
 		KeyTypeString:  {algarray[alg_STRING].hash, algarray[alg_STRING].equal, assertString},
 		KeyTypeFloat32: {algarray[alg_FLOAT32].hash, algarray[alg_FLOAT32].equal, assertFloat32},
 		KeyTypeFloat64: {algarray[alg_FLOAT64].hash, algarray[alg_FLOAT64].equal, assertFloat64},

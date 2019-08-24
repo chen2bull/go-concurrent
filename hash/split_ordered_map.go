@@ -2,7 +2,9 @@ package hash
 
 const (
 	KeyTypeInt32 = iota
+	KeyTypeUint32
 	KeyTypeInt64
+	KeyTypeUint64
 	KeyTypeString
 	KeyTypeFloat32
 	KeyTypeFloat64
@@ -13,7 +15,8 @@ const (
 
 type SplitOrderedMap struct {
 	t *typeFuncs
-
+	seed int32
+	size int64
 }
 
 
