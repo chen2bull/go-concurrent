@@ -45,6 +45,7 @@ func Test_memhash(t *testing.T) {
 			t.Fatalf("error  i:%v val4:%v val42:%v\n", i, val4, val42)
 		}
 	}
+	// TODO:后续如果golang中字符串的格式修改,这个结构也要一起修改
 	type stringInnerStruct struct {
 		str unsafe.Pointer
 		len int
