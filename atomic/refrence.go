@@ -28,9 +28,7 @@ func (sr *Reference) CompareAndSet(expectedV interface{}, newV interface{}) bool
 	var cur = (*valueRef)(old)
 
 	if cur.value == expectedV {
-		if cur.value != newV {
-			return atomic.CompareAndSwapPointer(sr.p, old, unsafe.Pointer(&valueRef{value: newV}))
-		}
+		return atomic.CompareAndSwapPointer(sr.p, old, unsafe.Pointer(&valueRef{value: newV}))
 	}
 	return false
 }
