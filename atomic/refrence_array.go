@@ -9,13 +9,14 @@ import (
 type ReferenceArray struct {
 	ptr uintptr
 	len int
+	_s  []unsafe.Pointer
 }
 
-var noUseInterface interface{}
 var sizeOfInterface uintptr
 
 func init() {
-	sizeOfInterface = unsafe.Sizeof(noUseInterface)
+	var v unsafe.Pointer
+	sizeOfInterface = unsafe.Sizeof(v)
 }
 
 // NOTE:需要和golang中的slice结构保持一致
@@ -26,10 +27,15 @@ type slice struct {
 	cap   int
 }
 
+var _defaultInterface interface{}
+
 func NewReferenceArray(len int) *ReferenceArray {
-	s := make([]unsafe.Pointer, len)
+	s := make([]unsafe.Pointer, len, len)
+	for i := 0; i < len; i ++ {
+		s[i] = (unsafe.Pointer)(&_defaultInterface)
+	}
 	s2 := (*slice)(unsafe.Pointer(&s))
-	return &ReferenceArray{ptr: uintptr(s2.array), len: len}
+	return &ReferenceArray{ptr: uintptr(s2.array), len: len, _s: s}
 }
 
 func (arr *ReferenceArray) calcOffset(i int) uintptr {
@@ -40,27 +46,30 @@ func (arr *ReferenceArray) calcOffset(i int) uintptr {
 }
 
 func (arr *ReferenceArray) Get(i int) interface{} {
-	elePtrPtr := (*unsafe.Pointer)(unsafe.Pointer(arr.ptr + arr.calcOffset(i)))
-	elePtr := (*interface{})(atomic.LoadPointer(elePtrPtr))
-	return *elePtr
+	elePtr := (*unsafe.Pointer)(unsafe.Pointer(arr.ptr + arr.calcOffset(i)))
+	facePtr := (*interface{})(atomic.LoadPointer(elePtr))
+	return *facePtr
 }
 
 func (arr *ReferenceArray) Set(i int, v interface{}) {
 	vPtr := unsafe.Pointer(&v)
-	elePtrPtr := (*unsafe.Pointer)(unsafe.Pointer(arr.ptr + arr.calcOffset(i)))
-	atomic.StorePointer(elePtrPtr, vPtr)
+	elePtr := (*unsafe.Pointer)(unsafe.Pointer(arr.ptr + arr.calcOffset(i)))
+	atomic.StorePointer(elePtr, vPtr)
 }
 
-func (arr *ReferenceArray) CompareAndSwap(i int, oldV interface{}, newV interface{}) bool {
-	elePtrPtr := (*unsafe.Pointer)(unsafe.Pointer(arr.ptr + arr.calcOffset(i)))
-	var oldEle = atomic.LoadPointer(elePtrPtr)
-	var curV = (*interface{})(oldEle)
-	oldPtr := unsafe.Pointer(&oldV)
+func (arr *ReferenceArray) CompareAndSet(i int, oldV interface{}, newV interface{}) bool {
+	elePtr := (*unsafe.Pointer)(unsafe.Pointer(arr.ptr + arr.calcOffset(i)))
+	var oldEle = atomic.LoadPointer(elePtr)
+	var curVPtr = (*interface{})(oldEle)
 	newPtr := unsafe.Pointer(&newV)
-	if *curV == oldV {
+	if *curVPtr == oldV {
 		if oldV != newV {
-			return atomic.CompareAndSwapPointer(elePtrPtr, oldPtr, newPtr)
+			return atomic.CompareAndSwapPointer(elePtr, oldEle, newPtr)
 		}
 	}
 	return false
+}
+
+func (arr *ReferenceArray) printElements() {
+	fmt.Printf("at %p slice:%v\n", unsafe.Pointer(arr.ptr), arr._s)
 }
