@@ -19,7 +19,6 @@ func TestReflectInfo(t *testing.T) {
 	a := make([]interface{}, 10)
 	fmt.Printf("Type of a=%T\n", a)
 
-
 	a2 := (*slice)(unsafe.Pointer(&a))
 	fmt.Printf("Type of a2=%T\n", a2)
 	fmt.Printf("Type of a2.array=%T\n", a2.array)
@@ -107,5 +106,39 @@ func TestReferenceArrayStruct(t *testing.T) {
 			t.Fatalf("value is error:%v", v)
 		}
 		arr.printElements()
+	}
+}
+
+func TestReferenceArray_CompareAddrValueAndSet(t *testing.T) {
+	lenght := 100000
+	arr := NewReferenceArray(lenght)
+	c := cStruct{15, 1}
+	for i := 0; i < lenght; i++ {
+		set := arr.CompareAndSet(i, nil, c)
+		if ! set {
+			t.Fatalf("set:%v", set)
+		}
+
+		// 成功设置
+		addr := arr.GetAddress(i)
+		set = arr.CompareAddrValueAndSet(i, addr, cStruct{15, 1}, cStruct{15, 2})
+		if ! set {
+			t.Fatalf("set:%v", set)
+		}
+
+		// 中间有被修改过
+		addr = arr.GetAddress(i)
+		set = arr.CompareAndSet(i, cStruct{15, 2}, cStruct{15, 3})
+		if ! set {
+			t.Fatalf("set:%v", set)
+		}
+		set = arr.CompareAndSet(i, cStruct{15, 3}, cStruct{15, 2})
+		if ! set {
+			t.Fatalf("set:%v", set)
+		}
+		set = arr.CompareAddrValueAndSet(i, addr, cStruct{15, 2}, cStruct{15, 3})
+		if set { // !!!
+			t.Fatalf("set:%v", set)
+		}
 	}
 }
