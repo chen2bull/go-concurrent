@@ -1,29 +1,34 @@
 package vector
 
 import (
-	"github.com/cmingjian/go-concurrent/atomic"
+	atomic2 "github.com/cmingjian/go-concurrent/atomic"
 	"math/bits"
+	"sync/atomic"
 )
 
-const FBS = 64            // First bucket size; can be any power of 2.
-const highestBitOfFBS = 6 // highestBit(FBS)
+const (
+	FBS             = 64 // First bucket size; can be any power of 2.
+	highestBitOfFBS = 6  // highestBit(FBS)
+	isNotPending    = 0
+	isPending       = 1
+)
 
 type LockFreeVector struct {
-	desc *atomic.StampedReference
-	vals *atomic.ReferenceArray // ReferenceArray of ReferenceArray
+	desc *atomic2.StampedReference
+	vals *atomic2.ReferenceArray // ReferenceArray of ReferenceArray
 }
 
 func NewEmptyLockFreeVector() *LockFreeVector {
-	desc := atomic.NewStampedReference(newDescriptor(0, nil), 0)
-	vals := atomic.NewReferenceArray(bits.UintSize)
-	vals.Set(0, atomic.NewReferenceArray(FBS))
+	desc := atomic2.NewStampedReference(newDescriptor(0, nil), 0)
+	vals := atomic2.NewReferenceArray(bits.UintSize)
+	vals.Set(0, atomic2.NewReferenceArray(FBS))
 	return &LockFreeVector{desc: desc, vals: vals}
 }
 
 func NewLockFreeVector(size int) *LockFreeVector {
 	vecPtr := NewEmptyLockFreeVector()
 	vecPtr.Reserve(size)
-	desc := atomic.NewStampedReference(newDescriptor(0, nil), 0)
+	desc := atomic2.NewStampedReference(newDescriptor(0, nil), 0)
 	vecPtr.desc.Set(desc, 0)
 	return vecPtr
 }
@@ -43,27 +48,27 @@ func (vec *LockFreeVector) Reserve(newSize int) {
 
 func (vec *LockFreeVector) allocateBucket(bucketIdx int) {
 	bucketSize := 1 << (uint)(bucketIdx+highestBitOfFBS)
-	newBucket := atomic.NewReferenceArray(bucketSize)
+	newBucket := atomic2.NewReferenceArray(bucketSize)
 	if !vec.vals.CompareAndSet(bucketIdx, nil, newBucket) {
 	}
 }
 
 func (vec *LockFreeVector) WriteAt(idx int, v interface{}) {
 	bucketIdx, withinIdx := getBucketAndIndex(idx)
-	bucket := vec.vals.Get(int(bucketIdx)).(*atomic.ReferenceArray)
+	bucket := vec.vals.Get(int(bucketIdx)).(*atomic2.ReferenceArray)
 	bucket.Set(withinIdx, v)
 }
 
 func (vec *LockFreeVector) ReadAt(idx int) interface{} {
 	bucketIdx, withinIdx := getBucketAndIndex(idx)
-	bucket := vec.vals.Get(int(bucketIdx)).(*atomic.ReferenceArray)
+	bucket := vec.vals.Get(int(bucketIdx)).(*atomic2.ReferenceArray)
 	return bucket.Get(withinIdx)
 }
 
 func (vec *LockFreeVector) Size(idx int) int {
 	currDesc := vec.desc.GetReference().(*descriptor)
 	size := currDesc.size
-	if currDesc.writeOp != nil && currDesc.writeOp.pending {
+	if currDesc.writeOp != nil && atomic.LoadInt32(&currDesc.writeOp.pending) == isPending {
 		size --
 	}
 	return size
@@ -109,11 +114,16 @@ func (vec *LockFreeVector) PopBack() interface{} {
 }
 
 func (vec *LockFreeVector) completeWrite(writeDesc *writeDescriptor) {
-	if writeDesc != nil && writeDesc.pending {
+	if writeDesc != nil && atomic.LoadInt32(&writeDesc.pending) == isPending {
 		bucketIdx, withinIdx := getBucketAndIndex(writeDesc.idx)
-		array := vec.vals.Get(bucketIdx).(*atomic.ReferenceArray)
-		array.CompareAndSet(withinIdx, writeDesc.oldV, writeDesc.newV)
-		writeDesc.pending = false
+		array := vec.vals.Get(bucketIdx).(*atomic2.ReferenceArray)
+		// 情况1.如果多个线程同时获得修改前的地址,那么只有一个线程的"CAS A"那一行成功执行
+		// 情况2.如果线程P1在另一个线程P2成功执行"CAS A"那一行后,读取地址，那么在线程P1中下面的if语句一定会失败
+		addr := array.GetAddress(withinIdx)
+		if atomic.LoadInt32(&writeDesc.pending) == isPending { // can not omit
+			atomic.StoreInt32(&writeDesc.pending, isNotPending) // 不能和下面一行换位置
+			array.CompareAddrValueAndSet(withinIdx, addr, writeDesc.oldV, writeDesc.newV) // CAS A
+		}
 	}
 }
 
@@ -181,9 +191,9 @@ type writeDescriptor struct {
 	oldV    interface{}
 	newV    interface{}
 	idx     int
-	pending bool
+	pending int32
 }
 
 func newWriteDescriptor(oldV interface{}, newV interface{}, idx int) *writeDescriptor {
-	return &writeDescriptor{oldV: oldV, newV: newV, idx: idx, pending: true}
+	return &writeDescriptor{oldV: oldV, newV: newV, idx: idx, pending: isPending}
 }

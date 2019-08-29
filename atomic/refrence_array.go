@@ -51,6 +51,11 @@ func (arr *ReferenceArray) Get(i int) interface{} {
 	return *facePtr
 }
 
+func (arr *ReferenceArray) GetAddress(i int) unsafe.Pointer {
+	elePtr := (*unsafe.Pointer)(unsafe.Pointer(arr.ptr + arr.calcOffset(i)))
+	return atomic.LoadPointer(elePtr)
+}
+
 func (arr *ReferenceArray) Set(i int, v interface{}) {
 	vPtr := unsafe.Pointer(&v)
 	elePtr := (*unsafe.Pointer)(unsafe.Pointer(arr.ptr + arr.calcOffset(i)))
@@ -63,9 +68,19 @@ func (arr *ReferenceArray) CompareAndSet(i int, oldV interface{}, newV interface
 	var curVPtr = (*interface{})(oldEle)
 	newPtr := unsafe.Pointer(&newV)
 	if *curVPtr == oldV {
-		if oldV != newV {
-			return atomic.CompareAndSwapPointer(elePtr, oldEle, newPtr)
-		}
+		return atomic.CompareAndSwapPointer(elePtr, oldEle, newPtr)
+	}
+	return false
+}
+
+func (arr *ReferenceArray) CompareAddrValueAndSet(i int, expectOldAddr unsafe.Pointer, oldV interface{},
+	newV interface{}) bool {
+	elePtr := (*unsafe.Pointer)(unsafe.Pointer(arr.ptr + arr.calcOffset(i)))
+	var oldEle = atomic.LoadPointer(elePtr)
+	var curVPtr = (*interface{})(oldEle)
+	newPtr := unsafe.Pointer(&newV)
+	if *curVPtr == oldV {
+		return atomic.CompareAndSwapPointer(elePtr, expectOldAddr, newPtr)
 	}
 	return false
 }
