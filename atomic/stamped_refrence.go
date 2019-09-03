@@ -40,10 +40,8 @@ func (sr *StampedReference) CompareAndSet(expectedV interface{}, newV interface{
 	var cur = (*stampedPair)(old)
 
 	if cur.value == expectedV && cur.stamp == expectedStamp {
-		if cur.stamp != newStamp {
-			//fmt.Printf("*sr.p:%value old:%value\n", *sr.p, old)
-			return atomic.CompareAndSwapPointer(sr.p, old, unsafe.Pointer(&stampedPair{value: newV, stamp: newStamp}))
-		}
+		//fmt.Printf("*sr.p:%value old:%value\n", *sr.p, old)
+		return atomic.CompareAndSwapPointer(sr.p, old, unsafe.Pointer(&stampedPair{value: newV, stamp: newStamp}))
 	}
 	return false
 }

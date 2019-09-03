@@ -40,9 +40,7 @@ func (sr *MarkableReference) CompareAndSet(expectedV interface{}, newV interface
 	var cur = (*markablePair)(old)
 
 	if cur.v == expectedV && cur.mark == expectedMark {
-		if cur.mark != newMark {
-			return atomic.CompareAndSwapPointer(sr.p, old, unsafe.Pointer(&markablePair{v: newV, mark: newMark}))
-		}
+		return atomic.CompareAndSwapPointer(sr.p, old, unsafe.Pointer(&markablePair{v: newV, mark: newMark}))
 	}
 	return false
 }
