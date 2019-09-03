@@ -3,6 +3,7 @@ package vector
 import (
 	atomic2 "github.com/cmingjian/go-concurrent/atomic"
 	"math/bits"
+	"sync"
 	"sync/atomic"
 )
 
@@ -14,22 +15,23 @@ const (
 )
 
 type LockFreeVector struct {
-	desc *atomic2.StampedReference
-	vals *atomic2.ReferenceArray // ReferenceArray of ReferenceArray
+	desc    *atomic2.StampedReference
+	vals    *atomic2.ReferenceArray // ReferenceArray of ReferenceArray
+	resLock *sync.Mutex             // see method allocateBucket
 }
 
 func NewEmptyLockFreeVector() *LockFreeVector {
 	desc := atomic2.NewStampedReference(newDescriptor(0, nil), 0)
 	vals := atomic2.NewReferenceArray(bits.UintSize)
 	vals.Set(0, atomic2.NewReferenceArray(FBS))
-	return &LockFreeVector{desc: desc, vals: vals}
+	return &LockFreeVector{desc: desc, vals: vals, resLock: &sync.Mutex{}}
 }
 
 func NewLockFreeVector(size int) *LockFreeVector {
 	vecPtr := NewEmptyLockFreeVector()
 	vecPtr.Reserve(size)
-	desc := atomic2.NewStampedReference(newDescriptor(0, nil), 0)
-	vecPtr.desc.Set(desc, 0)
+	descVal := newDescriptor(0, nil)
+	vecPtr.desc.Set(descVal, 0)
 	return vecPtr
 }
 
@@ -47,10 +49,14 @@ func (vec *LockFreeVector) Reserve(newSize int) {
 }
 
 func (vec *LockFreeVector) allocateBucket(bucketIdx int) {
-	bucketSize := 1 << (uint)(bucketIdx+highestBitOfFBS)
-	newBucket := atomic2.NewReferenceArray(bucketSize)
-	if !vec.vals.CompareAndSet(bucketIdx, nil, newBucket) {
+	vec.resLock.Lock() // It's better not to allocate the same bucket in more than one thread/routine
+	if vec.vals.Get(bucketIdx) == nil {
+		bucketSize := 1 << (uint)(bucketIdx+highestBitOfFBS)
+		newBucket := atomic2.NewReferenceArray(bucketSize)
+		if !vec.vals.CompareAndSet(bucketIdx, nil, newBucket) {
+		}
 	}
+	vec.resLock.Unlock()
 }
 
 func (vec *LockFreeVector) WriteAt(idx int, v interface{}) {
@@ -65,7 +71,7 @@ func (vec *LockFreeVector) ReadAt(idx int) interface{} {
 	return bucket.Get(withinIdx)
 }
 
-func (vec *LockFreeVector) Size(idx int) int {
+func (vec *LockFreeVector) Size() int {
 	currDesc := vec.desc.GetReference().(*descriptor)
 	size := currDesc.size
 	if currDesc.writeOp != nil && atomic.LoadInt32(&currDesc.writeOp.pending) == isPending {
@@ -121,10 +127,16 @@ func (vec *LockFreeVector) completeWrite(writeDesc *writeDescriptor) {
 		// 情况2.如果线程P1在另一个线程P2成功执行"CAS A"那一行后,读取地址，那么在线程P1中下面的if语句一定会失败
 		addr := array.GetAddress(withinIdx)
 		if atomic.LoadInt32(&writeDesc.pending) == isPending { // can not omit
-			atomic.StoreInt32(&writeDesc.pending, isNotPending) // 不能和下面一行换位置
+			atomic.StoreInt32(&writeDesc.pending, isNotPending)                           // 不能和下面一行换位置
 			array.CompareAddrValueAndSet(withinIdx, addr, writeDesc.oldV, writeDesc.newV) // CAS A
 		}
 	}
+}
+
+func (vec *LockFreeVector) tryCompleteWrite() {
+	currDescRef, _ := vec.desc.Get()
+	currDesc := currDescRef.(*descriptor)
+	vec.completeWrite(currDesc.writeOp)
 }
 
 func highestBit(n int) int {
