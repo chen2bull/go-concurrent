@@ -22,15 +22,15 @@ func TestInitFunc(t *testing.T) {
 func Test_memhash(t *testing.T) {
 	seed := rand.Int31()
 	for i:= int64(0); i < int64(3000); i++ {
-		val1 := int32(memhash(unsafe.Pointer(&i), uintptr(seed), 1)) & Mask
-		val2 := int32(memhash(unsafe.Pointer(&i), uintptr(seed), 2)) & Mask
-		val3 := int32(memhash(unsafe.Pointer(&i), uintptr(seed), 4)) & Mask
-		val4 := int32(memhash(unsafe.Pointer(&i), uintptr(seed), 8)) & Mask
+		val1 := int64(memhash(unsafe.Pointer(&i), uintptr(seed), 1)) & mask64
+		val2 := int64(memhash(unsafe.Pointer(&i), uintptr(seed), 2)) & mask64
+		val3 := int64(memhash(unsafe.Pointer(&i), uintptr(seed), 4)) & mask64
+		val4 := int64(memhash(unsafe.Pointer(&i), uintptr(seed), 8)) & mask64
 
-		val12 := int32(memhash(unsafe.Pointer(&i), uintptr(seed), 1)) & Mask
-		val22 := int32(memhash(unsafe.Pointer(&i), uintptr(seed), 2)) & Mask
-		val32 := int32(memhash(unsafe.Pointer(&i), uintptr(seed), 4)) & Mask
-		val42 := int32(memhash(unsafe.Pointer(&i), uintptr(seed), 8)) & Mask
+		val12 := int64(memhash(unsafe.Pointer(&i), uintptr(seed), 1)) & mask64
+		val22 := int64(memhash(unsafe.Pointer(&i), uintptr(seed), 2)) & mask64
+		val32 := int64(memhash(unsafe.Pointer(&i), uintptr(seed), 4)) & mask64
+		val42 := int64(memhash(unsafe.Pointer(&i), uintptr(seed), 8)) & mask64
 
 		if val1 != val12 {
 			t.Fatalf("error  i:%v val1:%v val12:%v\n", i, val1, val12)
@@ -79,8 +79,8 @@ func Test_memhash32(t *testing.T) {
 	addNum := rand.Int31()
 	for i:= int32(0); i < int32(3000); i++ {
 		c := i + addNum
-		val1 := int32(memhash32(unsafe.Pointer(&c), uintptr(seed))) & Mask
-		val2 := int32(memhash32(unsafe.Pointer(&c), uintptr(seed))) & Mask
+		val1 := int64(memhash32(unsafe.Pointer(&c), uintptr(seed))) & mask64
+		val2 := int64(memhash32(unsafe.Pointer(&c), uintptr(seed))) & mask64
 		if val1 != val2 {
 			t.Fatalf("error  val1:%v val2:%v\n", val1, val2)
 		}
@@ -90,10 +90,10 @@ func Test_memhash32(t *testing.T) {
 func Test_memhash32_conflict(t *testing.T) {
 	seed := rand.Int31()
 	conflictCount := 0
-	existMap := make(map[int32]bool)
-	testCount := int32(0xFFFFFF)
-	for i:= int32(0); i < testCount; i++ {
-		val1 := int32(memhash32(unsafe.Pointer(&i), uintptr(seed))) & Mask
+	existMap := make(map[int64]bool)
+	testCount := 0xFFFFFF
+	for i:= 0; i < testCount; i++ {
+		val1 := int64(memhash32(unsafe.Pointer(&i), uintptr(seed))) & mask64
 		exist, _ := existMap[val1]
 		if exist {
 			conflictCount = conflictCount + 1
@@ -109,8 +109,8 @@ func Test_memhash64(t *testing.T) {
 	addNum := rand.Int63()
 	for i:= int64(0); i < int64(3000); i++ {
 		c := i + addNum
-		val1 := int32(memhash64(unsafe.Pointer(&c), uintptr(seed))) & Mask
-		val2 := int32(memhash64(unsafe.Pointer(&c), uintptr(seed))) & Mask
+		val1 := int64(memhash64(unsafe.Pointer(&c), uintptr(seed))) & mask64
+		val2 := int64(memhash64(unsafe.Pointer(&c), uintptr(seed))) & mask64
 		if val1 != val2 {
 			t.Fatalf("error  val1:%v val2:%v\n", val1, val2)
 		}

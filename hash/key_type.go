@@ -2,90 +2,124 @@ package hash
 
 import (
 	"fmt"
+	"math/bits"
+	"reflect"
 	"unsafe"
 )
 
 type typeFuncs struct {
-	hash   func(unsafe.Pointer, uintptr) uintptr
-	equal  func(unsafe.Pointer, unsafe.Pointer) bool
-	assert func(v interface{})
+	hash                  func(unsafe.Pointer, uintptr) uintptr
+	equal                 func(unsafe.Pointer, unsafe.Pointer) bool
+	getInterfaceValueAddr func(v interface{}) unsafe.Pointer
 }
 
-func assertInt32(v interface{}) {
-	_, ok := v.(int32)
+func takeInt32Addr(v interface{}) unsafe.Pointer {
+	param, ok := v.(int32)
 	if !ok {
-		panic(fmt.Sprintf("key %v is not int32", v))
+		panic(fmt.Sprintf("key %v's type is not int32, is %T", v, v))
 	}
+	return unsafe.Pointer(&param)
 }
 
-func assertUint32(v interface{}) {
-	_, ok := v.(uint32)
+func takeUint32Addr(v interface{}) unsafe.Pointer {
+	param, ok := v.(uint32)
 	if !ok {
-		panic(fmt.Sprintf("key %v is not uint32", v))
+		panic(fmt.Sprintf("key %v's type is not uint32, is %T", v, v))
 	}
+	return unsafe.Pointer(&param)
 }
 
-func assertInt64(v interface{}) {
-	_, ok := v.(int64)
+func takeInt64Addr(v interface{})unsafe.Pointer  {
+	param, ok := v.(int64)
 	if !ok {
-		panic(fmt.Sprintf("key %v is not int64", v))
+		panic(fmt.Sprintf("key %v's type is not int64, is %T", v, v))
 	}
+	return unsafe.Pointer(&param)
 }
 
-func assertUint64(v interface{}) {
-	_, ok := v.(uint64)
+func takeUint64Addr(v interface{}) unsafe.Pointer {
+	param, ok := v.(uint64)
 	if !ok {
-		panic(fmt.Sprintf("key %v is not uint64", v))
+		panic(fmt.Sprintf("key %v's type is not uint64, is %T", v, v))
 	}
+	return unsafe.Pointer(&param)
 }
 
-func assertString(v interface{}) {
-	_, ok := v.(string)
+func takeIntAddr(v interface{})unsafe.Pointer  {
+	param, ok := v.(int)
 	if !ok {
-		panic(fmt.Sprintf("key %v is not string", v))
+		panic(fmt.Sprintf("key %v's type is not int, is %T", v, v))
 	}
+	return unsafe.Pointer(&param)
 }
 
-func assertFloat32(v interface{}) {
-	_, ok := v.(float32)
+func takeUintAddr(v interface{}) unsafe.Pointer {
+	param, ok := v.(uint)
 	if !ok {
-		panic(fmt.Sprintf("key %v is not float32", v))
+		panic(fmt.Sprintf("key %v's type is not uint, is %T", v, v))
 	}
+	return unsafe.Pointer(&param)
 }
 
-func assertFloat64(v interface{}) {
-	_, ok := v.(float64)
+func takeStringAddr(v interface{})unsafe.Pointer  {
+	param, ok := v.(string)
 	if !ok {
-		panic(fmt.Sprintf("key %v is not float64", v))
+		panic(fmt.Sprintf("key %v's type is not string, is %T", v, v))
 	}
+	return unsafe.Pointer(&param)
 }
 
-func assertComplex64(v interface{}) {
-	_, ok := v.(complex64)
+func takeFloat32Addr(v interface{})unsafe.Pointer  {
+	param, ok := v.(float32)
 	if !ok {
-		panic(fmt.Sprintf("key %v is not complex64", v))
+		panic(fmt.Sprintf("key %v's type is not float32, is %T", v, v))
 	}
+	return unsafe.Pointer(&param)
 }
 
-func assertComplex128(v interface{}) {
-	_, ok := v.(complex128)
+func takeFloat64Addr(v interface{}) unsafe.Pointer {
+	param, ok := v.(float64)
 	if !ok {
-		panic(fmt.Sprintf("key %v is not complex128", v))
+		panic(fmt.Sprintf("key %v's type is not float64, is %T", v, v))
 	}
+	return unsafe.Pointer(&param)
 }
 
-var keyTypeMap [lenOfKeyTypeEnum] typeFuncs
+func takeComplex64Addr(v interface{}) unsafe.Pointer {
+	param, ok := v.(complex64)
+	if !ok {
+		panic(fmt.Sprintf("key %v's type is not complex64, is %T", v, v))
+	}
+	return unsafe.Pointer(&param)
+}
+
+func takeComplex128Addr(v interface{}) unsafe.Pointer {
+	param, ok := v.(complex128)
+	if !ok {
+		panic(fmt.Sprintf("key %v's type is not complex128, is %T", v, v))
+	}
+	return unsafe.Pointer(&param)
+}
+
+const lenOfKeyTypeMap = reflect.UnsafePointer + 100 // UnsafePointer + 1就已经放得下，避免后续go库扩展了
+var keyTypeMap [lenOfKeyTypeMap] typeFuncs
 
 func init() {
-	keyTypeMap = [lenOfKeyTypeEnum]typeFuncs{
-		KeyTypeInt32:   {algarray[alg_MEM32].hash, algarray[alg_MEM32].equal, assertInt32},
-		KeyTypeUint32:   {algarray[alg_MEM32].hash, algarray[alg_MEM32].equal, assertUint32},
-		KeyTypeInt64:   {algarray[alg_MEM64].hash, algarray[alg_MEM64].equal, assertInt64},
-		KeyTypeUint64:   {algarray[alg_MEM64].hash, algarray[alg_MEM64].equal, assertUint64},
-		KeyTypeString:  {algarray[alg_STRING].hash, algarray[alg_STRING].equal, assertString},
-		KeyTypeFloat32: {algarray[alg_FLOAT32].hash, algarray[alg_FLOAT32].equal, assertFloat32},
-		KeyTypeFloat64: {algarray[alg_FLOAT64].hash, algarray[alg_FLOAT64].equal, assertFloat64},
-		KeyTypeCPLX64:  {algarray[alg_CPLX64].hash, algarray[alg_CPLX64].equal, assertComplex64},
-		KeyTypeCPLX128: {algarray[alg_CPLX128].hash, algarray[alg_CPLX128].equal, assertComplex128},
+	keyTypeMap = [lenOfKeyTypeMap]typeFuncs{
+		reflect.Int32:{algarray[alg_MEM32].hash, algarray[alg_MEM32].equal, takeInt32Addr},
+		reflect.Uint32:{algarray[alg_MEM32].hash, algarray[alg_MEM32].equal, takeUint32Addr},
+		reflect.Int64:{algarray[alg_MEM64].hash, algarray[alg_MEM64].equal, takeInt64Addr},
+		reflect.Uint64:{algarray[alg_MEM64].hash, algarray[alg_MEM64].equal, takeUint64Addr},
+		reflect.Int:{algarray[alg_MEM64].hash, algarray[alg_MEM64].equal, takeIntAddr},
+		reflect.Uint:{algarray[alg_MEM64].hash, algarray[alg_MEM64].equal, takeUintAddr},
+		reflect.String:{algarray[alg_STRING].hash, algarray[alg_STRING].equal, takeStringAddr},
+		reflect.Float32:{algarray[alg_FLOAT32].hash, algarray[alg_FLOAT32].equal, takeFloat32Addr},
+		reflect.Float64:{algarray[alg_FLOAT64].hash, algarray[alg_FLOAT64].equal, takeFloat64Addr},
+		reflect.Complex64:{algarray[alg_CPLX64].hash, algarray[alg_CPLX64].equal, takeComplex64Addr},
+		reflect.Complex128:{algarray[alg_CPLX128].hash, algarray[alg_CPLX128].equal, takeComplex128Addr},
+	}
+	if bits.UintSize == 32 {
+		keyTypeMap[reflect.Int] = typeFuncs{algarray[alg_MEM32].hash, algarray[alg_MEM32].equal, takeIntAddr}
+		keyTypeMap[reflect.Uint] = typeFuncs{algarray[alg_MEM32].hash, algarray[alg_MEM32].equal, takeUintAddr}
 	}
 }

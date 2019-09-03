@@ -3,6 +3,7 @@ package hash
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"testing"
 )
 
@@ -51,7 +52,7 @@ func TestBucketList_NewBucketList(t *testing.T) {
 	if bucketLs.Contains(math.MaxInt64-1, math.MaxInt64-1) {
 		t.Fatalf("contains fail!")
 	}
-	sentinel := bucketLs.getSentinel(0x10)
+	sentinel := bucketLs.getSentinelByBucket(0x10)
 	fmt.Printf("sentinel:%v", sentinel)
 }
 
@@ -90,6 +91,18 @@ func  TestBucketList_Put_Get(t *testing.T) {
 	bucketLs.printAllElements()
 }
 
+func TestBucketList_Put(t *testing.T) {
+	bl := NewBucketList()
+	m := NewFixedBucketLockFreeMap(128, reflect.Int)
+	offset := 1000
+	for i := 0; i < 0xFF; i++ {
+		keyHash := m.calcHash(i)
+		bl.Put(keyHash, i, i + offset)
+	}
+
+	//bl.printAllElements()
+}
+
 func  TestBucketList_Remove(t *testing.T) {
 	bucketLs := NewBucketList()
 	if bucketLs.Remove(100, 100) {
@@ -112,10 +125,16 @@ func TestBucketList_getSentinel(t *testing.T) {
 	bucketLs.Put(2, 2, 213123)
 	bucketLs.Put(3, 3, 12123)
 	bucketLs.Put(101, 101, 1654564)
-	bl1 := bucketLs.getSentinel(100)
-	if !bl1.Contains(101, 101) {
-		t.Fatalf("unexpected fail")
+	for i:= uint(0); i < uint(55); i++ {
+		bl1 := bucketLs.getSentinelByHash(100)
+		if !bl1.Contains(101, 101) {
+			fmt.Printf("=======================================================================\n")
+			bucketLs.printAllElements()
+			fmt.Printf("=======================================================================\n")
+			bl1.printAllElements()
+			t.Fatalf("unexpected fail")
+		}
 	}
-	bl1.printAllElements()
+
 	bucketLs.printAllElements()
 }

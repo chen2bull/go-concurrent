@@ -86,10 +86,10 @@ func (bl *BucketList) Get(keyHash int64, key interface{}) interface{} {
 }
 func (bl *BucketList) getSentinelByBucket(bucketIdx int64) *BucketList {
 	keyHash := makeSentinelKey(bucketIdx)
-	return bl.getSentinel(keyHash)
+	return bl.getSentinelByHash(keyHash)
 }
 
-func (bl *BucketList) getSentinel(keyHash int64) *BucketList {
+func (bl *BucketList) getSentinelByHash(keyHash int64) *BucketList {
 	for ; true; {
 		pred, curr := bl.head.find(keyHash, keyHash)
 		if curr.keyHash == keyHash {
@@ -121,7 +121,7 @@ func (bl *BucketList) printAllElements() {
 			return
 		}
 		curr = currRef.(*bucketListNode)
-		fmt.Printf("keyHash:%v key:%v value:%v\n", curr.keyHash, curr.key, curr.value)
+		fmt.Printf("keyHash:%56b key:%v value:%v\n", curr.keyHash, curr.key, curr.value)
 	}
 }
 

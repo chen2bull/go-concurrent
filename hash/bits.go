@@ -166,6 +166,13 @@ func abs32(x int32) int32 {
 	return x
 }
 
+func abs64(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 func init() {
 	if bits.UintSize == 32 {
 		reverse = func(key int) int {
