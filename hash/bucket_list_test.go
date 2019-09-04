@@ -122,9 +122,13 @@ func  TestBucketList_Remove(t *testing.T) {
 func TestBucketList_getSentinel(t *testing.T) {
 	bucketLs := NewBucketList()
 	bucketLs.Put(1, 1, 2342)
+	bucketLs.Put(1000, 101, 1654564)
 	bucketLs.Put(2, 2, 213123)
 	bucketLs.Put(3, 3, 12123)
 	bucketLs.Put(101, 101, 1654564)
+	bucketLs.Put(101, 102, 1654564)
+	bucketLs.Put(101, 103, 1654564)
+	bucketLs.Put(101, 101, 417417)
 	for i:= uint(0); i < uint(55); i++ {
 		bl1 := bucketLs.getSentinelByHash(100)
 		if !bl1.Contains(101, 101) {

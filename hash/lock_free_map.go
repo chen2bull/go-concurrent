@@ -2,22 +2,23 @@ package hash
 
 import (
 	"fmt"
-	atomic2 "github.com/cmingjian/go-concurrent/atomic"
+	"github.com/cmingjian/go-concurrent/vector"
 	"math/rand"
 	"reflect"
 	"sync/atomic"
 )
 
-type FixedBucketLockFreeMap struct {
-	bucket     *atomic2.ReferenceArray
+type LockFreeMap struct {
+	bucket     *vector.LockFreeVector
 	t          *typeFuncs
 	hashSeed   uintptr
 	bucketSize int64
-	bucketCap  int64
 	tabSize    int64
 }
 
-func NewFixedBucketLockFreeMap(bucketCap int, keyType reflect.Kind) *FixedBucketLockFreeMap {
+const lockFreeMapMaxCap = maxBucketSize64 >> 16		// seems we don't need such big bucket capacity
+
+func NewLockFreeMap(keyType reflect.Kind) *LockFreeMap {
 	t := keyTypeMap[keyType]
 	if !isKeyTypeInit {
 		panic("can not create map while not init\n")
@@ -25,34 +26,31 @@ func NewFixedBucketLockFreeMap(bucketCap int, keyType reflect.Kind) *FixedBucket
 	if t.hash == nil {
 		panic(fmt.Sprintf("unsupported type:%v\n", keyType.String()))
 	}
-	bucketCap = tableSizeFor(bucketCap)
-	bucket := atomic2.NewReferenceArray(bucketCap)
-	bucket.Set(0, NewBucketList())
 	var bucketSize int64 = 128
-	var tabSize int64 = 0
-	hashSeed := uintptr(uint32(rand.Int31())) // do not change this line.
-	return &FixedBucketLockFreeMap{
+	bucket := vector.NewEmptyLockFreeVector()
+	bucket.Reserve(int(bucketSize))
+	bucket.WriteAt(0, NewBucketList())
+	return &LockFreeMap{
 		bucket:     bucket,
-		hashSeed:   hashSeed,
+		hashSeed:   uintptr(uint32(rand.Int31())),
 		bucketSize: bucketSize,
-		bucketCap:  int64(bucketCap),
-		tabSize:    tabSize,
+		tabSize:    0,
 		t:          &t,
 	}
 }
 
-func (lfMap *FixedBucketLockFreeMap) calcHash(key interface{}) int64 {
+func (lfMap *LockFreeMap) calcHash(key interface{}) int64 {
 	hashCode := abs64(int64(lfMap.t.hash(lfMap.t.getInterfaceValueAddr(key), lfMap.hashSeed)))
 	return makeRegularKey(hashCode)
 }
 
-func (lfMap *FixedBucketLockFreeMap) isEqual(key interface{}, key2 interface{}) bool {
+func (lfMap *LockFreeMap) isEqual(key interface{}, key2 interface{}) bool {
 	addr := lfMap.t.getInterfaceValueAddr(key)
 	addr2 := lfMap.t.getInterfaceValueAddr(key2)
 	return lfMap.t.equal(addr, addr2)
 }
 
-func (lfMap *FixedBucketLockFreeMap) Put(key interface{}, value interface{}) bool {
+func (lfMap *LockFreeMap) Put(key interface{}, value interface{}) bool {
 	hashCode := abs64(int64(lfMap.t.hash(lfMap.t.getInterfaceValueAddr(key), lfMap.hashSeed)))
 	bucketSize := atomic.LoadInt64(&lfMap.bucketSize)
 	myBucket := hashCode % bucketSize
@@ -61,15 +59,15 @@ func (lfMap *FixedBucketLockFreeMap) Put(key interface{}, value interface{}) boo
 
 	setSizeNow := atomic.AddInt64(&lfMap.tabSize, 1)
 	bucketSizeNow := atomic.LoadInt64(&lfMap.bucketSize)
-	bucketCap := atomic.LoadInt64(&lfMap.bucketCap)
 
-	if float64(setSizeNow)/float64(bucketSizeNow) > DefaultLoadFactor && 2*bucketSizeNow <= bucketCap {
+	if (setSizeNow/bucketSizeNow > DefaultLoadFactor) && (2*bucketSizeNow <= lockFreeMapMaxCap) {
+		lfMap.bucket.Reserve(int(2*bucketSizeNow))
 		atomic.CompareAndSwapInt64(&lfMap.bucketSize, bucketSizeNow, 2*bucketSizeNow) // 如果失败,表示已经在别处添加
 	}
 	return true
 }
 
-func (lfMap *FixedBucketLockFreeMap) Remove(key interface{}) bool {
+func (lfMap *LockFreeMap) Remove(key interface{}) bool {
 	hashCode := abs64(int64(lfMap.t.hash(lfMap.t.getInterfaceValueAddr(key), lfMap.hashSeed)))
 	bucketSize := atomic.LoadInt64(&lfMap.bucketSize)
 	myBucket := hashCode % bucketSize
@@ -80,7 +78,7 @@ func (lfMap *FixedBucketLockFreeMap) Remove(key interface{}) bool {
 	return true
 }
 
-func (lfMap *FixedBucketLockFreeMap) Contains(key interface{}) bool {
+func (lfMap *LockFreeMap) Contains(key interface{}) bool {
 	hashCode := abs64(int64(lfMap.t.hash(lfMap.t.getInterfaceValueAddr(key), lfMap.hashSeed)))
 	bucketSize := atomic.LoadInt64(&lfMap.bucketSize)
 	myBucket := hashCode % bucketSize
@@ -88,17 +86,15 @@ func (lfMap *FixedBucketLockFreeMap) Contains(key interface{}) bool {
 	return b.Contains(makeRegularKey(hashCode), key)
 }
 
-func (lfMap *FixedBucketLockFreeMap) Get(key interface{}) interface{} {
+func (lfMap *LockFreeMap) Get(key interface{}) interface{} {
 	hashCode := abs64(int64(lfMap.t.hash(lfMap.t.getInterfaceValueAddr(key), lfMap.hashSeed)))
 	bucketSize := atomic.LoadInt64(&lfMap.bucketSize)
 	myBucket := hashCode % bucketSize
 	b := lfMap.getBucketList(myBucket)
-	//fmt.Printf("keyHash:%56b key:%v Get value throw bucket %v bucketSize:%v \n",
-	//	b.head.keyHash, b.head.key, myBucket, bucketSize)
 	return b.Get(makeRegularKey(hashCode), key)
 }
 
-func (lfMap *FixedBucketLockFreeMap) Find(key interface{}) (interface{}, bool){
+func (lfMap *LockFreeMap) Find(key interface{}) (interface{}, bool){
 	hashCode := abs64(int64(lfMap.t.hash(lfMap.t.getInterfaceValueAddr(key), lfMap.hashSeed)))
 	bucketSize := atomic.LoadInt64(&lfMap.bucketSize)
 	myBucket := hashCode % bucketSize
@@ -106,33 +102,33 @@ func (lfMap *FixedBucketLockFreeMap) Find(key interface{}) (interface{}, bool){
 	return b.Find(makeRegularKey(hashCode), key)
 }
 
-func (lfMap *FixedBucketLockFreeMap) printAllElements() {
-	lfMap.bucket.Get(0).(*BucketList).printAllElements()
+func (lfMap *LockFreeMap) printAllElements() {
+	lfMap.bucket.ReadAt(0).(*BucketList).printAllElements()
 }
 
-func (lfMap *FixedBucketLockFreeMap) getBucketList(myBucket int64) *BucketList {
+func (lfMap *LockFreeMap) getBucketList(myBucket int64) *BucketList {
 	index := int(myBucket)
-	if lfMap.bucket.Get(index) == nil {
+	if lfMap.bucket.ReadAt(index) == nil {
 		lfMap.initializeBucket(myBucket)
 	}
-	bl := lfMap.bucket.Get(index).(*BucketList)
+	bl := lfMap.bucket.ReadAt(index).(*BucketList)
 	return bl
 }
 
-func (lfMap *FixedBucketLockFreeMap) initializeBucket(myBucket int64) {
+func (lfMap *LockFreeMap) initializeBucket(myBucket int64) {
 	parent := lfMap.getParent(myBucket)
 	parentIndex := int(parent)
-	if lfMap.bucket.Get(parentIndex) == nil {
+	if lfMap.bucket.ReadAt(parentIndex) == nil {
 		lfMap.initializeBucket(parent)
 	}
-	parentBl := lfMap.bucket.Get(parentIndex).(*BucketList)
+	parentBl := lfMap.bucket.ReadAt(parentIndex).(*BucketList)
 	bl := parentBl.getSentinelByBucket(myBucket)
 	if bl != nil {
-		lfMap.bucket.Set(int(myBucket), bl)
+		lfMap.bucket.WriteAt(int(myBucket), bl)
 	}
 }
 
-func (lfMap *FixedBucketLockFreeMap) getParent(myBucket int64) int64 {
+func (lfMap *LockFreeMap) getParent(myBucket int64) int64 {
 	bitVal := atomic.LoadInt64(&lfMap.bucketSize) // bucketSize must pow of 2
 	for ; bitVal > myBucket; { // 循环过后 bitVal的值为myBucket二进制的最高位
 		bitVal = bitVal >> 1

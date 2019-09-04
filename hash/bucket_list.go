@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/cmingjian/go-concurrent/atomic"
 	"math"
-	"reflect"
 )
 
 type BucketList struct {
@@ -29,7 +28,7 @@ func (bl *BucketList) Put(keyHash int64, key interface{}, value interface{}) {
 	splice := false
 	for ; true; {
 		pred, curr := bl.head.find(keyHash, key)
-		if curr.keyHash == keyHash && reflect.DeepEqual(curr.key, key) { // is the key present?
+		if curr.keyHash == keyHash && curr.key == key { // is the key present?
 			entry := newBucketListNode(keyHash, key, value)
 			entry.next.Set(curr, true) // !!!entry.next的marked是true,因此插入完成的时候,curr也被删除了
 			splice = pred.next.CompareAndSet(curr, entry, false, false)
@@ -55,13 +54,13 @@ func (bl *BucketList) Put(keyHash int64, key interface{}, value interface{}) {
 
 func (bl *BucketList) Contains(keyHash int64, key interface{}) bool {
 	_, curr := bl.head.find(keyHash, key)
-	return curr.keyHash == keyHash && reflect.DeepEqual(curr.key, key)
+	return curr.keyHash == keyHash && curr.key == key
 }
 
 func (bl *BucketList) Remove(keyHash int64, key interface{}) bool {
 	for ; true; {
 		pred, curr := bl.head.find(keyHash, key)
-		if curr.keyHash == keyHash && reflect.DeepEqual(curr.key, key) {
+		if curr.keyHash == keyHash && curr.key == key {
 			snip := pred.next.AttemptMark(curr, true)
 			if snip {
 				pred.getNext() // 触发真的删除
@@ -78,12 +77,22 @@ func (bl *BucketList) Remove(keyHash int64, key interface{}) bool {
 
 func (bl *BucketList) Get(keyHash int64, key interface{}) interface{} {
 	_, curr := bl.head.find(keyHash, key)
-	if curr.keyHash == keyHash && reflect.DeepEqual(curr.key, key) { // is the key present?
+	if curr.keyHash == keyHash && curr.key == key { // is the key present?
 		return curr.value
 	} else {
 		return nil
 	}
 }
+
+func (bl *BucketList) Find(keyHash int64, key interface{}) (interface{}, bool) {
+	_, curr := bl.head.find(keyHash, key)
+	if curr.keyHash == keyHash && curr.key == key { // is the key present?
+		return curr.value, true
+	} else {
+		return nil, false
+	}
+}
+
 func (bl *BucketList) getSentinelByBucket(bucketIdx int64) *BucketList {
 	keyHash := makeSentinelKey(bucketIdx)
 	return bl.getSentinelByHash(keyHash)
@@ -161,7 +170,7 @@ func (node *bucketListNode) getNext() *bucketListNode {
 func (node *bucketListNode) find(keyHash int64, key interface{}) (*bucketListNode, *bucketListNode) {
 	pred := node
 	curr := pred.getNext()
-	for ; curr.keyHash < keyHash || (curr.keyHash == keyHash && !reflect.DeepEqual(curr.key, key)); {
+	for ; curr.keyHash < keyHash || (curr.keyHash == keyHash && curr.key != key); {
 		pred = curr
 		curr = pred.getNext()
 	}

@@ -103,6 +103,7 @@ func takeComplex128Addr(v interface{}) unsafe.Pointer {
 
 const lenOfKeyTypeMap = reflect.UnsafePointer + 100 // UnsafePointer + 1就已经放得下，避免后续go库扩展了
 var keyTypeMap [lenOfKeyTypeMap] typeFuncs
+var isKeyTypeInit = false
 
 func init() {
 	keyTypeMap = [lenOfKeyTypeMap]typeFuncs{
@@ -122,4 +123,5 @@ func init() {
 		keyTypeMap[reflect.Int] = typeFuncs{algarray[alg_MEM32].hash, algarray[alg_MEM32].equal, takeIntAddr}
 		keyTypeMap[reflect.Uint] = typeFuncs{algarray[alg_MEM32].hash, algarray[alg_MEM32].equal, takeUintAddr}
 	}
+	isKeyTypeInit = true
 }

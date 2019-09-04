@@ -44,7 +44,7 @@ const (
 	// maxCap64值为1 << 54，bucket数组的最大容量，可以保证最大下标的HiMask必然为0
 	// reverse64以后最低位必定为0（即保证了作为哨兵节点的key最低位必为0）
 
-	DefaultLoadFactor float64 = 4 // float64(mapSizeNow)/float64(bucketSizeNow)  > DefaultLoadFactor的时候，扩展桶数组
+	DefaultLoadFactor = 4 // float64(mapSizeNow)/float64(bucketSizeNow)  > DefaultLoadFactor的时候，扩展桶数组
 )
 
 var mask int
@@ -52,11 +52,11 @@ var hiMask int
 
 func makeRegularKey(hashKey int64) int64 {
 	code := hashKey & mask64
-	return reverse64(code | hiMask64)
+	return lookupReverse64(code | hiMask64)
 }
 
 func makeSentinelKey(hashKey int64) int64 {
-	return reverse64(hashKey & mask64)
+	return lookupReverse64(hashKey & mask64)
 }
 
 // reverse前必须已经 & mask32

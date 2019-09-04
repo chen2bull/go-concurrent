@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -85,7 +86,7 @@ func TestFixedBucketLockFreeMap_CalcHash2(t *testing.T) {
 	for i := 0; i < 0xFFF; i++ {
 		n := int(rand.Int63())
 		hashV := m.calcHash(n)
-		if hashV & 0x1 != 1 {
+		if hashV&0x1 != 1 {
 			t.Fatalf("illeagal hash value. hashV:%v n:%v\n", hashV, n)
 		}
 	}
@@ -95,9 +96,9 @@ func TestFixedBucketLockFreeMap_Put(t *testing.T) {
 	m := NewFixedBucketLockFreeMap(128, reflect.Int)
 	offset := 1000
 	for i := 0; i < 0xFFF; i++ {
-		m.Put(i, i + offset)
+		m.Put(i, i+offset)
 		v := m.Get(i)
-		if v != offset + i {
+		if v != offset+i {
 			m.printAllElements()
 			m.Get(i)
 			t.Fatalf("unexpected value. v:%v i:%v\n", v, i)
@@ -106,3 +107,70 @@ func TestFixedBucketLockFreeMap_Put(t *testing.T) {
 	//m.printAllElements()
 }
 
+const (
+	goroutineCount    = 1000
+	timesPerGoroutine = 5000
+)
+
+var valueArrayForTest [timesPerGoroutine * goroutineCount]int
+var fixedFreeMap *FixedBucketLockFreeMap
+var syncMap = &sync.Map{}
+
+func TestFixedBucketLockFreeMap_Put_Concurrent(t *testing.T) {
+	freeMap := NewFixedBucketLockFreeMap(timesPerGoroutine*goroutineCount/3, reflect.Int)
+	wg := sync.WaitGroup{}
+
+	// PushBack
+	for i := 0; i < goroutineCount; i ++ {
+		wg.Add(1)
+		go func(m *FixedBucketLockFreeMap, i2 int) {
+			for j := 0; j < timesPerGoroutine; j ++ {
+				v := valueArrayForTest[i2*timesPerGoroutine+j]
+				m.Put(i2*timesPerGoroutine+j, v)
+				v2 := m.Get(i2*timesPerGoroutine + j)
+				if v != v2 {
+					panic(fmt.Sprintf("not equal|v:%v v2:%v\n", v, v2))
+				}
+			}
+			wg.Done()
+		}(freeMap, i)
+	}
+	wg.Wait()
+	if freeMap.tabSize != int64(timesPerGoroutine*goroutineCount) {
+		t.Fatalf("tabsize:%v timesPerGoroutine:%v goroutineCount:%v\n",
+			freeMap.tabSize, timesPerGoroutine, goroutineCount)
+	}
+}
+
+func TestSyncMap_Put_Concurrent(t *testing.T) {
+	conMap := sync.Map{}
+	wg := sync.WaitGroup{}
+
+	// PushBack
+	for i := 0; i < goroutineCount; i ++ {
+		wg.Add(1)
+		go func(m *sync.Map, i2 int) {
+			for j := 0; j < timesPerGoroutine; j ++ {
+				v := valueArrayForTest[i2*timesPerGoroutine+j]
+				m.Store(i2*timesPerGoroutine+j, v)
+				v2, _ := m.Load(i2*timesPerGoroutine + j)
+				if v != v2 {
+					panic(fmt.Sprintf("not equal|v:%v v2:%v\n", v, v2))
+				}
+			}
+			wg.Done()
+		}(&conMap, i)
+	}
+	wg.Wait()
+}
+
+
+func init() {
+	valueArrayForTest = [timesPerGoroutine * goroutineCount] int{}
+	for i := 0; i < goroutineCount; i ++ {
+		for j := 0; j < timesPerGoroutine; j++ {
+			valueArrayForTest[i*timesPerGoroutine+j] = rand.Int()
+		}
+	}
+	fixedFreeMap = NewFixedBucketLockFreeMap(timesPerGoroutine*goroutineCount/3, reflect.Int)
+}
