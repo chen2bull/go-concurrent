@@ -10,10 +10,12 @@ type BucketList struct {
 	head *bucketListNode
 }
 
+const SentinelOfSentinelHash = math.MaxInt64
+
 func NewBucketList() *BucketList {
 	head := newBucketListSentinelNode(0)
 	// math.MaxInt64 是独一无二的哨兵值,比其他所有‘哨兵节点’和‘元素节点’的哈希值都大，永远都不会被删除
-	head.next = atomic.NewMarkableReference(newBucketListSentinelNode(math.MaxInt64), false)
+	head.next = atomic.NewMarkableReference(newBucketListSentinelNode(SentinelOfSentinelHash), false)
 	// 注意：
 	// 1、列表中math.MaxInt64这个哨兵节点其实是‘哨兵的哨兵’，运行过程中，最大的输入keyHash绝对会小于math.MaxInt64，
 	// 有math.MaxInt64这个哨兵的存在，可以保证对于所有合法的输入keyHash，bucketListNode的find方法都不会报错

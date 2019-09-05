@@ -16,7 +16,7 @@ type LockFreeMap struct {
 	tabSize    int64
 }
 
-const lockFreeMapMaxCap = maxBucketSize64 >> 16		// seems we don't need such big bucket capacity
+const lockFreeMapMaxCap = maxBucketSize64 >> 16 // seems we don't need such big bucket capacity
 
 func NewLockFreeMap(keyType reflect.Kind) *LockFreeMap {
 	t := keyTypeMap[keyType]
@@ -61,7 +61,7 @@ func (lfMap *LockFreeMap) Put(key interface{}, value interface{}) bool {
 	bucketSizeNow := atomic.LoadInt64(&lfMap.bucketSize)
 
 	if (setSizeNow/bucketSizeNow > DefaultLoadFactor) && (2*bucketSizeNow <= lockFreeMapMaxCap) {
-		lfMap.bucket.Reserve(int(2*bucketSizeNow))
+		lfMap.bucket.Reserve(int(2 * bucketSizeNow))
 		atomic.CompareAndSwapInt64(&lfMap.bucketSize, bucketSizeNow, 2*bucketSizeNow) // 如果失败,表示已经在别处添加
 	}
 	return true
@@ -94,7 +94,7 @@ func (lfMap *LockFreeMap) Get(key interface{}) interface{} {
 	return b.Get(makeRegularKey(hashCode), key)
 }
 
-func (lfMap *LockFreeMap) Find(key interface{}) (interface{}, bool){
+func (lfMap *LockFreeMap) Find(key interface{}) (interface{}, bool) {
 	hashCode := abs64(int64(lfMap.t.hash(lfMap.t.getInterfaceValueAddr(key), lfMap.hashSeed)))
 	bucketSize := atomic.LoadInt64(&lfMap.bucketSize)
 	myBucket := hashCode % bucketSize
@@ -103,6 +103,17 @@ func (lfMap *LockFreeMap) Find(key interface{}) (interface{}, bool){
 }
 
 func (lfMap *LockFreeMap) printAllElements() {
+	iter := lfMap.Iter()
+	for ; true; {
+		ok, key, value := iter.Next()
+		if !ok {
+			break
+		}
+		fmt.Printf("key:%v value:%v\n", key, value)
+	}
+}
+
+func (lfMap *LockFreeMap) printAllNodes() {
 	lfMap.bucket.ReadAt(0).(*BucketList).printAllElements()
 }
 
@@ -134,4 +145,31 @@ func (lfMap *LockFreeMap) getParent(myBucket int64) int64 {
 		bitVal = bitVal >> 1
 	}
 	return myBucket - bitVal
+}
+
+func (lfMap *LockFreeMap) Iter() MapIterator {
+	bucket := lfMap.getBucketList(0)
+	return MapIterator{curr: bucket.head}
+}
+
+type MapIterator struct {
+	curr *bucketListNode
+}
+
+func (iter *MapIterator) Next() (bool, interface{}, interface{}) {
+	for ; true; {
+		if iter.curr.keyHash == SentinelOfSentinelHash {
+			return false, nil, nil
+		}
+		curr := iter.curr.getNext()
+		iter.curr = curr
+		if curr.keyHash == SentinelOfSentinelHash {
+			return false, nil, nil
+		}
+		if isRegularKey(curr.keyHash) {
+			iter.curr = curr
+			return true, curr.key, curr.value
+		}
+	}
+	panic("never here")
 }

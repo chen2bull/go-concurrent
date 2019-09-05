@@ -55,6 +55,10 @@ func makeRegularKey(hashKey int64) int64 {
 	return lookupReverse64(code | hiMask64)
 }
 
+func isRegularKey(hashKey int64) bool {
+	return (hashKey & loMask64) == 1
+}
+
 func makeSentinelKey(hashKey int64) int64 {
 	return lookupReverse64(hashKey & mask64)
 }
