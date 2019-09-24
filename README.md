@@ -15,6 +15,10 @@ A go concurrent algorithm Library.
 ### go-concurrent/hash
 - lock free hashtable
 
+### go-concurrent/stack
+- lock free stack
+- lock free exchanger
+
 ### go-concurrent/combine
 - combining tree
 
